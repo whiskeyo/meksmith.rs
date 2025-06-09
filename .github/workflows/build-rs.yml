@@ -1,0 +1,33 @@
+name: codegen.rs build & test
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    name: codegen.rs build & test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Build development version
+        run: cargo build --verbose
+
+      - name: Check the formatting of the code
+        run: cargo fmt --all -- --check
+
+      - name: Check the package and dependencies for errors
+        run: cargo check --verbose
+
+      - name: Run unit and integration tests
+        run: cargo test --verbose
+
+      - name: Build release version
+        run: cargo build --release --verbose
