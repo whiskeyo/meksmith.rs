@@ -173,7 +173,7 @@ fn identifier<'src>() -> impl Parser<'src, &'src str, Identifier> {
 /// It can also be a static or dynamic array of a given type.
 /// The static array is defined as `type[size]`, and the dynamic array is defined as `type[]`.
 fn type_identifier<'src>() -> impl Parser<'src, &'src str, TypeIdentifier> {
-    recursive(|type_identifier| {
+    recursive(|_type_identifier| {
         let int8 = just("int8").to(TypeIdentifier::Integer8);
         let int16 = just("int16").to(TypeIdentifier::Integer16);
         let int32 = just("int32").to(TypeIdentifier::Integer32);
