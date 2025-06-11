@@ -42,7 +42,8 @@ use chumsky::prelude::*;
 /// Parses an identifier from the input string. Identifier has to start with
 /// either alphabetic characters or an underscore, followed by alphanumeric
 /// characters or underscores.
-pub(crate) fn identifier<'src>() -> impl Parser<'src, &'src str, Identifier> {
+pub(crate) fn identifier<'src>()
+-> impl Parser<'src, &'src str, Identifier, extra::Err<Rich<'src, char>>> {
     text::ident()
         .map(|s: &str| Identifier::new(s))
         .labelled("identifier")
@@ -53,7 +54,8 @@ pub(crate) fn identifier<'src>() -> impl Parser<'src, &'src str, Identifier> {
 /// like `int8`, `uint16`, `float32`, etc., or a user-defined type.
 /// It can also be a static or dynamic array of a given type.
 /// The static array is defined as `type[size]`, and the dynamic array is defined as `type[]`.
-pub(crate) fn type_identifier<'src>() -> impl Parser<'src, &'src str, TypeIdentifier> {
+pub(crate) fn type_identifier<'src>()
+-> impl Parser<'src, &'src str, TypeIdentifier, extra::Err<Rich<'src, char>>> {
     recursive(|_type_identifier| {
         let int8 = just("int8").to(TypeIdentifier::Integer8);
         let int16 = just("int16").to(TypeIdentifier::Integer16);
@@ -114,7 +116,7 @@ pub(crate) fn type_identifier<'src>() -> impl Parser<'src, &'src str, TypeIdenti
 
 /// Parses a single value enumeration field in the format `name = value;`
 pub(crate) fn enumeration_field_single_value<'src>()
--> impl Parser<'src, &'src str, EnumerationField> {
+-> impl Parser<'src, &'src str, EnumerationField, extra::Err<Rich<'src, char>>> {
     let name = identifier();
     let equals = just('=').padded();
     let value = text::int(10)
@@ -131,7 +133,8 @@ pub(crate) fn enumeration_field_single_value<'src>()
 }
 
 /// Parses a range of values defined by `start..end`.
-pub(crate) fn range<'src>() -> impl Parser<'src, &'src str, (u64, u64)> {
+pub(crate) fn range<'src>() -> impl Parser<'src, &'src str, (u64, u64), extra::Err<Rich<'src, char>>>
+{
     let start = text::int(10)
         .padded()
         .map(|s: &str| s.parse::<u64>().unwrap());
@@ -150,7 +153,7 @@ pub(crate) fn range<'src>() -> impl Parser<'src, &'src str, (u64, u64)> {
 
 /// Parses a range of values enumeration field in the format `name = start..end;`
 pub(crate) fn enumeration_field_range_of_values<'src>()
--> impl Parser<'src, &'src str, EnumerationField> {
+-> impl Parser<'src, &'src str, EnumerationField, extra::Err<Rich<'src, char>>> {
     let name = identifier();
     let equals = just('=').padded();
     let range = range();
@@ -165,7 +168,8 @@ pub(crate) fn enumeration_field_range_of_values<'src>()
 }
 
 /// Parses an enumeration field from the input string.
-pub(crate) fn enumeration_field<'src>() -> impl Parser<'src, &'src str, EnumerationField> {
+pub(crate) fn enumeration_field<'src>()
+-> impl Parser<'src, &'src str, EnumerationField, extra::Err<Rich<'src, char>>> {
     choice((
         enumeration_field_single_value(),
         enumeration_field_range_of_values(),
@@ -175,7 +179,8 @@ pub(crate) fn enumeration_field<'src>() -> impl Parser<'src, &'src str, Enumerat
 }
 
 /// Parses an enumeration with fields.
-pub(crate) fn enumeration_definition<'src>() -> impl Parser<'src, &'src str, Enumeration> {
+pub(crate) fn enumeration_definition<'src>()
+-> impl Parser<'src, &'src str, Enumeration, extra::Err<Rich<'src, char>>> {
     let enum_keyword = just("enum").padded();
     let name = identifier();
     let open_brace = just("{").padded();
@@ -196,7 +201,8 @@ pub(crate) fn enumeration_definition<'src>() -> impl Parser<'src, &'src str, Enu
 }
 
 /// Parses a structure field, which consists of a name and a type identifier.
-pub(crate) fn structure_field<'src>() -> impl Parser<'src, &'src str, StructureField> {
+pub(crate) fn structure_field<'src>()
+-> impl Parser<'src, &'src str, StructureField, extra::Err<Rich<'src, char>>> {
     let name = identifier();
     let colon = just(':').padded();
     let r#type = type_identifier();
@@ -211,7 +217,8 @@ pub(crate) fn structure_field<'src>() -> impl Parser<'src, &'src str, StructureF
 }
 
 /// Parses a structure definition, which consists of a name and a collection of fields.
-pub(crate) fn structure_definition<'src>() -> impl Parser<'src, &'src str, Structure> {
+pub(crate) fn structure_definition<'src>()
+-> impl Parser<'src, &'src str, Structure, extra::Err<Rich<'src, char>>> {
     let struct_keyword = just("struct").padded();
     let name = identifier();
     let open_brace = just("{").padded();
@@ -232,7 +239,8 @@ pub(crate) fn structure_definition<'src>() -> impl Parser<'src, &'src str, Struc
 }
 
 /// Parses a union field, which consists of a discriminator, name, and type identifier.
-pub(crate) fn union_field<'src>() -> impl Parser<'src, &'src str, UnionField> {
+pub(crate) fn union_field<'src>()
+-> impl Parser<'src, &'src str, UnionField, extra::Err<Rich<'src, char>>> {
     let discriminator = text::int(10)
         .padded()
         .map(|s: &str| s.parse::<i64>().unwrap());
@@ -258,7 +266,8 @@ pub(crate) fn union_field<'src>() -> impl Parser<'src, &'src str, UnionField> {
 }
 
 /// Parses a union definition, which consists of a name and a collection of union fields.
-pub(crate) fn union_definition<'src>() -> impl Parser<'src, &'src str, Union> {
+pub(crate) fn union_definition<'src>()
+-> impl Parser<'src, &'src str, Union, extra::Err<Rich<'src, char>>> {
     let union_keyword = just("union").padded();
     let name = identifier();
     let open_brace = just("{").padded();
@@ -279,7 +288,8 @@ pub(crate) fn union_definition<'src>() -> impl Parser<'src, &'src str, Union> {
 }
 
 /// Parses a type definition, which consists of a new type name and an existing type.
-pub(crate) fn type_definition<'src>() -> impl Parser<'src, &'src str, TypeDefinition> {
+pub(crate) fn type_definition<'src>()
+-> impl Parser<'src, &'src str, TypeDefinition, extra::Err<Rich<'src, char>>> {
     let using = just("using").padded();
     let new_type = identifier();
     let equals = just('=').padded();
@@ -297,7 +307,8 @@ pub(crate) fn type_definition<'src>() -> impl Parser<'src, &'src str, TypeDefini
 }
 
 /// Parses a single definition, which can be an enumeration, structure, union, or type definition.
-pub(crate) fn definition<'src>() -> impl Parser<'src, &'src str, Definition> {
+pub(crate) fn definition<'src>()
+-> impl Parser<'src, &'src str, Definition, extra::Err<Rich<'src, char>>> {
     choice((
         enumeration_definition().map(Definition::Enumeration),
         structure_definition().map(Definition::Structure),
@@ -309,7 +320,8 @@ pub(crate) fn definition<'src>() -> impl Parser<'src, &'src str, Definition> {
 }
 
 /// Parses the entire protocol, which consists of multiple definitions.
-pub(crate) fn protocol<'src>() -> impl Parser<'src, &'src str, Protocol> {
+pub(crate) fn protocol<'src>()
+-> impl Parser<'src, &'src str, Protocol, extra::Err<Rich<'src, char>>> {
     definition()
         .repeated()
         .collect::<Vec<Definition>>()
@@ -802,6 +814,13 @@ mod tests {
     #[test]
     fn test_structure_without_fields() {
         let result = structure_definition().parse("struct MyStruct { };");
+        assert!(result.has_errors());
+        assert!(!result.has_output());
+    }
+
+    #[test]
+    fn test_structure_with_invalid_field() {
+        let result = structure_definition().parse("struct Xyz {\n\n myField: int32 };");
         assert!(result.has_errors());
         assert!(!result.has_output());
     }

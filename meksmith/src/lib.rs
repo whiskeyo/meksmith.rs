@@ -10,11 +10,22 @@ use chumsky::Parser;
 /// Parses a protocol from a string input and returns the resulting AST.
 pub fn parse_protocol_to_ast(input: &str) -> Result<Protocol, String> {
     let result = protocol().parse(input);
-    if result.has_errors() {
-        Err("Parsing errors occurred".to_string())
-    } else {
-        Ok(result.into_output().unwrap())
+
+    match result.into_result() {
+        Ok(ast) => Ok(ast),
+        Err(errors) => {
+            let error_messages: Vec<String> = errors.into_iter().map(|e| e.to_string()).collect();
+            Err(format!(
+                "Parsing failed. Errors: {}",
+                error_messages.join(", ")
+            ))
+        }
     }
+    // if result.has_errors() {
+    //     Err("Parsing errors occurred".to_string())
+    // } else {
+    //     Ok(result.into_output().unwrap())
+    // }
 }
 
 /// Parses a protocol from a file and returns the resulting AST. Similar to `parse_protocol_to_ast`,
@@ -28,6 +39,45 @@ pub fn parse_protocol_from_file_to_ast(file_path: &str) -> Result<Protocol, Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_protocol_to_ast() {
+        let input = r#"
+using MyType = int32[10];
+        "#;
+
+        let result = parse_protocol_to_ast(input);
+        assert!(!result.is_err());
+        let protocol = result.unwrap();
+        assert_eq!(protocol.definitions.len(), 1);
+        if let Definition::TypeDefinition(type_def) = &protocol.definitions[0] {
+            assert_eq!(type_def.new_type.name, "MyType");
+            assert_eq!(
+                type_def.r#type,
+                TypeIdentifier::StaticArray {
+                    r#type: Box::new(TypeIdentifier::Integer32),
+                    size: 10,
+                }
+            );
+        } else {
+            panic!("Expected a TypeDefinition");
+        }
+    }
+
+    #[test]
+    fn test_parse_protocol_to_ast_with_errors() {
+        let input = r#"
+using MyType = int32[10;
+        "#;
+
+        let result = parse_protocol_to_ast(input);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .eq("Parsing failed. Errors: found ';' expected digit, or ']'")
+        );
+    }
 
     #[test]
     fn test_parse_protocol_from_file_to_ast() {
