@@ -32,7 +32,7 @@
 //! <range> := <integer> '..' <integer>
 //! ```
 //!
-//! This grammar defines the structure of a protocol of the Codegen Lang, whose
+//! This grammar defines the structure of a protocol of the meksmith Lang, whose
 //! main purpose is to define data structures and types that can be used in code generation.
 
 use crate::ast::*;

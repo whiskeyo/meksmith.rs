@@ -1,4 +1,4 @@
-name: codegen.rs build & test
+name: meksmith.rs build & test
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
 
 jobs:
   linux:
-    name: codegen.rs build & test
+    name: meksmith.rs build & test
     runs-on: ubuntu-latest
     steps:
       - name: Clone repository
