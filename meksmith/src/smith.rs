@@ -10,14 +10,23 @@ pub mod c_smith {
         for field in &enumeration.fields {
             match field {
                 EnumerationField::SingleValue { name, value } => {
-                    code.push_str(&format!("    {} = {},\n", name.name, value));
+                    code.push_str(&format!(
+                        "    {}_{} = {},\n",
+                        enumeration.name.name, name.name, value
+                    ));
                 }
                 EnumerationField::RangeOfValues { name, start, end } => {
                     if start == end {
-                        code.push_str(&format!("    {} = {},\n", name.name, start));
+                        code.push_str(&format!(
+                            "    {}_{} = {},\n",
+                            enumeration.name.name, name.name, start
+                        ));
                     } else {
                         for i in *start..=*end {
-                            code.push_str(&format!("    {}{} = {},\n", name.name, i, i));
+                            code.push_str(&format!(
+                                "    {}_{}{} = {},\n",
+                                enumeration.name.name, name.name, i, i
+                            ));
                         }
                     }
                 }
@@ -123,6 +132,11 @@ pub mod c_smith {
         code
     }
 
+    pub fn generate_c_code_from_string(input: &str) -> Result<String, String> {
+        let protocol = crate::parse_protocol_to_ast(input)?;
+        Ok(generate_c_code(&protocol))
+    }
+
     pub fn generate_from_file(file_path: &str) -> Result<String, String> {
         let protocol = crate::parse_protocol_from_file_to_ast(file_path)?;
         Ok(generate_c_code(&protocol))
@@ -172,11 +186,11 @@ union MyUnion {
 #include <stdbool.h>
 
 typedef enum {
-    Value1 = 1,
-    Range2 = 2,
-    Range3 = 3,
-    Range4 = 4,
-    Range5 = 5,
+    MyEnum_Value1 = 1,
+    MyEnum_Range2 = 2,
+    MyEnum_Range3 = 3,
+    MyEnum_Range4 = 4,
+    MyEnum_Range5 = 5,
 } MyEnum;
 
 typedef MyEnum my_enum_alias_t;

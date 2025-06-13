@@ -21,11 +21,6 @@ pub fn parse_protocol_to_ast(input: &str) -> Result<Protocol, String> {
             ))
         }
     }
-    // if result.has_errors() {
-    //     Err("Parsing errors occurred".to_string())
-    // } else {
-    //     Ok(result.into_output().unwrap())
-    // }
 }
 
 /// Parses a protocol from a file and returns the resulting AST. Similar to `parse_protocol_to_ast`,

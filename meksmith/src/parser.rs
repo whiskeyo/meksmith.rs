@@ -8,13 +8,17 @@
 //!     | <type_definition>
 //!
 //! <enumeration_definition> := 'enum' <identifier> '{' <enumeration_field>+ '}'
-//! <enumeration_field> := <identifier> '=' (<integer> | <range>) ';'
+//! <enumeration_field> := <identifier> '=' (<unsigned_integer> | <range>) ';'
 //!
 //! <structure_definition> := 'struct' <identifier> '{' <structure_field>+ '}'
-//! <structure_field> := <identifier> ':' <type_identifier> ';'
+//! <structure_field> := [<field_attributes>] <identifier> ':' <type_identifier> ';'
 //!
 //! <union_definition> := 'union' <identifier> '{' <union_field>+ '}'
-//! <union_field> := <integer> '=>' <identifier> ':' <type_identifier> ';'
+//! <union_field> := <unsigned_integer> '=>' <identifier> ':' <type_identifier> ';'
+//!
+//! <field_attribute> := <identifier> '=' <identifier>
+//! <field_attribute_tail> := ',' <field_attribute>
+//! <field_attributes> := '[' <field_attribute> <field_attribute_tail>* ']'
 //!
 //! <type_definition> := 'using' <identifier> '=' <type_identifier> ';'
 //!
@@ -24,12 +28,12 @@
 //!     | 'float32' | 'float64'
 //!     | 'bit' | 'byte'
 //!     | <identifier>
-//!     | <type_identifier> '[' <integer> ']' // static array
+//!     | <type_identifier> '[' <unsigned_integer> ']' // static array
 //!     | <type_identifier> '[]' // dynamic array
 //!
+//! <range> := <unsigned_integer> '..' <unsigned_integer>
 //! <identifier> := [a-zA-Z_][a-zA-Z0-9_]*
-//! <integer> := [0-9]+
-//! <range> := <integer> '..' <integer>
+//! <unsigned_integer> := [0-9]+ | "0x" [0-9a-fA-F]+ | "0b" [01]+
 //! ```
 //!
 //! This grammar defines the structure of a protocol of the meksmith Lang, whose
@@ -38,6 +42,24 @@
 use crate::ast::*;
 
 use chumsky::prelude::*;
+
+/// Parses an unsigned integer in decimal, hexadecimal, or binary format.
+pub(crate) fn unsigned_integer<'src>()
+-> impl Parser<'src, &'src str, u64, extra::Err<Rich<'src, char>>> {
+    let hexadecimal = just("0x")
+        .ignore_then(text::int(16))
+        .map(|s: &str| u64::from_str_radix(s, 16).unwrap());
+
+    let binary = just("0b")
+        .ignore_then(text::int(2))
+        .map(|s: &str| u64::from_str_radix(s, 2).unwrap());
+
+    let decimal = text::int(10).map(|s: &str| s.parse().unwrap());
+
+    choice((hexadecimal, binary, decimal))
+        .labelled("unsigned_integer")
+        .padded()
+}
 
 /// Parses an identifier from the input string. Identifier has to start with
 /// either alphabetic characters or an underscore, followed by alphanumeric
@@ -91,11 +113,7 @@ pub(crate) fn type_identifier<'src>()
         let static_array = base_type
             .clone()
             .then_ignore(just('[').padded())
-            .then(
-                text::int(10)
-                    .padded()
-                    .map(|s: &str| s.parse::<u64>().unwrap()),
-            )
+            .then(unsigned_integer().boxed())
             .then_ignore(just(']'))
             .map(|(ty, size)| TypeIdentifier::StaticArray {
                 r#type: Box::new(ty),
@@ -119,9 +137,7 @@ pub(crate) fn enumeration_field_single_value<'src>()
 -> impl Parser<'src, &'src str, EnumerationField, extra::Err<Rich<'src, char>>> {
     let name = identifier();
     let equals = just('=').padded();
-    let value = text::int(10)
-        .padded()
-        .map(|s: &str| s.parse::<u64>().unwrap());
+    let value = unsigned_integer();
     let semicolon = just(';').padded();
 
     name.then_ignore(equals)
@@ -135,13 +151,9 @@ pub(crate) fn enumeration_field_single_value<'src>()
 /// Parses a range of values defined by `start..end`.
 pub(crate) fn range<'src>() -> impl Parser<'src, &'src str, (u64, u64), extra::Err<Rich<'src, char>>>
 {
-    let start = text::int(10)
-        .padded()
-        .map(|s: &str| s.parse::<u64>().unwrap());
+    let start = unsigned_integer();
     let range = just("..").padded();
-    let end = text::int(10)
-        .padded()
-        .map(|s: &str| s.parse::<u64>().unwrap());
+    let end = unsigned_integer();
 
     start
         .then_ignore(range)
@@ -200,18 +212,72 @@ pub(crate) fn enumeration_definition<'src>()
         .padded()
 }
 
+/// Parses a single structure field attribute, which consists of a name and a value.
+pub(crate) fn field_attribute<'src>()
+-> impl Parser<'src, &'src str, FieldAttribute, extra::Err<Rich<'src, char>>> {
+    let name = identifier();
+    let equals = just('=').padded();
+    let value = identifier();
+
+    name.then_ignore(equals)
+        .then(value)
+        .map(|(name, value)| FieldAttribute { name, value })
+        .labelled("field_attribute")
+        .padded()
+}
+
+/// Parses a structure field attribute tail, which is a comma followed by another attribute.
+pub(crate) fn field_attribute_tail<'src>()
+-> impl Parser<'src, &'src str, FieldAttribute, extra::Err<Rich<'src, char>>> {
+    let comma = just(',').padded();
+    comma
+        .ignore_then(field_attribute())
+        .labelled("field_attribute_tail")
+        .padded()
+}
+
+/// Parses a collection of structure field attributes, which are enclosed in square brackets
+/// and separated by commas.
+pub(crate) fn field_attributes<'src>()
+-> impl Parser<'src, &'src str, Vec<FieldAttribute>, extra::Err<Rich<'src, char>>> {
+    let open_bracket = just('[').padded();
+    let attributes = field_attribute()
+        .then(field_attribute_tail().repeated().collect::<Vec<_>>())
+        .map(|(first, rest)| {
+            let mut attrs = vec![first];
+            attrs.extend(rest);
+            attrs
+        });
+    let close_bracket = just(']').padded();
+
+    open_bracket
+        .ignore_then(attributes)
+        .then_ignore(close_bracket)
+        .labelled("field_attributes")
+        .padded()
+}
+
 /// Parses a structure field, which consists of a name and a type identifier.
 pub(crate) fn structure_field<'src>()
 -> impl Parser<'src, &'src str, StructureField, extra::Err<Rich<'src, char>>> {
+    let attributes = field_attributes()
+        .or_not()
+        .map(|attrs| attrs.unwrap_or_default());
     let name = identifier();
     let colon = just(':').padded();
     let r#type = type_identifier();
     let semicolon = just(';').padded();
 
-    name.then_ignore(colon)
+    attributes
+        .then(name)
+        .then_ignore(colon)
         .then(r#type)
         .then_ignore(semicolon)
-        .map(|(name, r#type)| StructureField { name, r#type })
+        .map(|((attributes, name), r#type)| StructureField {
+            attributes,
+            name,
+            r#type,
+        })
         .labelled("structure_field")
         .padded()
 }
@@ -241,9 +307,7 @@ pub(crate) fn structure_definition<'src>()
 /// Parses a union field, which consists of a discriminator, name, and type identifier.
 pub(crate) fn union_field<'src>()
 -> impl Parser<'src, &'src str, UnionField, extra::Err<Rich<'src, char>>> {
-    let discriminator = text::int(10)
-        .padded()
-        .map(|s: &str| s.parse::<i64>().unwrap());
+    let discriminator = unsigned_integer();
     let assigned_to = just("=>").padded();
     let name = identifier();
     let colon = just(':').padded();
@@ -333,6 +397,27 @@ pub(crate) fn protocol<'src>()
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_unsigned_integer_with_decimal_number() {
+        let result = unsigned_integer().parse("12345");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), 12345);
+    }
+
+    #[test]
+    fn test_unsigned_integer_with_hexadecimal_number() {
+        let result = unsigned_integer().parse("0x1A3F");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), 0x1A3F);
+    }
+
+    #[test]
+    fn test_unsigned_integer_with_binary_number() {
+        let result = unsigned_integer().parse("0b1101");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), 0b1101);
+    }
 
     #[test]
     fn test_identifier() {
@@ -512,6 +597,27 @@ mod tests {
         let result = range().parse("10..20");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(result.into_output().unwrap(), (10, 20));
+    }
+
+    #[test]
+    fn test_range_with_hexadecimal_numbers() {
+        let result = range().parse("0xA..0x14");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), (0xA, 0x14));
+    }
+
+    #[test]
+    fn test_range_with_binary_numbers() {
+        let result = range().parse("0b1010..0b1110");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), (0b1010, 0b1110));
+    }
+
+    #[test]
+    fn test_range_with_mixed_numbers() {
+        let result = range().parse("10..0x14");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), (10, 0x14));
     }
 
     #[test]
@@ -698,12 +804,81 @@ mod tests {
     }
 
     #[test]
+    fn test_field_attribute() {
+        let result = field_attribute().parse("myAttribute = myValue");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            FieldAttribute {
+                name: Identifier::new("myAttribute"),
+                value: Identifier::new("myValue"),
+            }
+        );
+    }
+
+    #[test]
+    fn test_field_attribute_invalid_syntax() {
+        let result = field_attribute().parse("myAttribute myValue");
+        assert!(result.has_errors());
+        assert!(!result.has_output());
+    }
+
+    #[test]
+    fn test_field_attribute_without_spaces() {
+        let result = field_attribute().parse("myAttribute=myValue");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            FieldAttribute {
+                name: Identifier::new("myAttribute"),
+                value: Identifier::new("myValue"),
+            }
+        );
+    }
+
+    #[test]
+    fn test_field_attribute_tail() {
+        let result = field_attribute_tail().parse(", anotherAttribute = anotherValue");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            FieldAttribute {
+                name: Identifier::new("anotherAttribute"),
+                value: Identifier::new("anotherValue"),
+            }
+        );
+    }
+
+    #[test]
+    fn test_field_attributes() {
+        let result =
+            field_attributes().parse("[myAttribute = myValue, anotherAttribute = anotherValue]");
+
+        println!("{:?}", result);
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            vec![
+                FieldAttribute {
+                    name: Identifier::new("myAttribute"),
+                    value: Identifier::new("myValue"),
+                },
+                FieldAttribute {
+                    name: Identifier::new("anotherAttribute"),
+                    value: Identifier::new("anotherValue"),
+                }
+            ]
+        );
+    }
+
+    #[test]
     fn test_structure_field() {
         let result = structure_field().parse("myField: int32;");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
             StructureField {
+                attributes: vec![],
                 name: Identifier::new("myField"),
                 r#type: TypeIdentifier::Integer32,
             }
@@ -717,6 +892,7 @@ mod tests {
         assert_eq!(
             result.into_output().unwrap(),
             StructureField {
+                attributes: vec![],
                 name: Identifier::new("myField"),
                 r#type: TypeIdentifier::UserDefined(Identifier::new("MyCustomType")),
             }
@@ -730,6 +906,7 @@ mod tests {
         assert_eq!(
             result.into_output().unwrap(),
             StructureField {
+                attributes: vec![],
                 name: Identifier::new("myField"),
                 r#type: TypeIdentifier::StaticArray {
                     r#type: Box::new(TypeIdentifier::Integer32),
@@ -746,6 +923,7 @@ mod tests {
         assert_eq!(
             result.into_output().unwrap(),
             StructureField {
+                attributes: vec![],
                 name: Identifier::new("myField"),
                 r#type: TypeIdentifier::DynamicArray {
                     r#type: Box::new(TypeIdentifier::UnsignedInteger64),
@@ -765,10 +943,12 @@ mod tests {
                 name: Identifier::new("MyStruct"),
                 fields: vec![
                     StructureField {
+                        attributes: vec![],
                         name: Identifier::new("myField"),
                         r#type: TypeIdentifier::Integer32,
                     },
                     StructureField {
+                        attributes: vec![],
                         name: Identifier::new("myArray"),
                         r#type: TypeIdentifier::DynamicArray {
                             r#type: Box::new(TypeIdentifier::UnsignedInteger64),
@@ -790,10 +970,12 @@ mod tests {
                 name: Identifier::new("MyStruct"),
                 fields: vec![
                     StructureField {
+                        attributes: vec![],
                         name: Identifier::new("myField"),
                         r#type: TypeIdentifier::Integer32,
                     },
                     StructureField {
+                        attributes: vec![],
                         name: Identifier::new("myArray"),
                         r#type: TypeIdentifier::DynamicArray {
                             r#type: Box::new(TypeIdentifier::UnsignedInteger64),
@@ -1039,10 +1221,12 @@ mod tests {
                 name: Identifier::new("MyStruct"),
                 fields: vec![
                     StructureField {
+                        attributes: vec![],
                         name: Identifier::new("myField"),
                         r#type: TypeIdentifier::Integer32,
                     },
                     StructureField {
+                        attributes: vec![],
                         name: Identifier::new("myArray"),
                         r#type: TypeIdentifier::DynamicArray {
                             r#type: Box::new(TypeIdentifier::UnsignedInteger64),
@@ -1107,6 +1291,7 @@ enum MyEnum {
 struct MyStruct {
     myField: int32;
     myArray: uint64[];
+    [someAttribute = someValue, differentAttribute = differentValue]
     myType: MyType;
 };
 
@@ -1147,16 +1332,28 @@ union MyUnion {
                         name: Identifier::new("MyStruct"),
                         fields: vec![
                             StructureField {
+                                attributes: vec![],
                                 name: Identifier::new("myField"),
                                 r#type: TypeIdentifier::Integer32,
                             },
                             StructureField {
+                                attributes: vec![],
                                 name: Identifier::new("myArray"),
                                 r#type: TypeIdentifier::DynamicArray {
                                     r#type: Box::new(TypeIdentifier::UnsignedInteger64),
                                 },
                             },
                             StructureField {
+                                attributes: vec![
+                                    FieldAttribute {
+                                        name: Identifier::new("someAttribute"),
+                                        value: Identifier::new("someValue"),
+                                    },
+                                    FieldAttribute {
+                                        name: Identifier::new("differentAttribute"),
+                                        value: Identifier::new("differentValue"),
+                                    }
+                                ],
                                 name: Identifier::new("myType"),
                                 r#type: TypeIdentifier::UserDefined(Identifier::new("MyType")),
                             }

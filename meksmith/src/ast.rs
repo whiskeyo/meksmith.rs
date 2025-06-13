@@ -62,11 +62,19 @@ pub struct Enumeration {
     pub fields: Vec<EnumerationField>,
 }
 
-/// Represents a single field in a structure, which consists of a name and a type.
+/// Represents a single attribute of a field in a structure or union.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldAttribute {
+    pub name: Identifier,
+    pub value: Identifier,
+}
+
+/// Represents a single field in a structure, which consists of an attribute list, name and a type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructureField {
     pub name: Identifier,
     pub r#type: TypeIdentifier,
+    pub attributes: Vec<FieldAttribute>,
 }
 
 /// Represents a structure, which is a user-defined type that consists of
@@ -84,7 +92,7 @@ pub struct Structure {
 pub struct UnionField {
     pub name: Identifier,
     pub r#type: TypeIdentifier,
-    pub discriminator: i64,
+    pub discriminator: u64,
 }
 
 /// Represents a union, which is a user-defined type that can hold one of several
