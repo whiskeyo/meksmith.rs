@@ -23,17 +23,31 @@
 //! <type_definition> := 'using' <identifier> '=' <type_identifier> ';'
 //!
 //! <type_identifier> :=
+//!       <builtin_type>
+//!     | <user_defined_type>
+//!     | <static_array_type>
+//!     | <dynamic_array_type>
+//!
+//! <builtin_type> :=
 //!       'int8' | 'int16' | 'int32' | 'int64'
 //!     | 'uint8' | 'uint16' | 'uint32' | 'uint64'
 //!     | 'float32' | 'float64'
 //!     | 'bit' | 'byte'
-//!     | <identifier>
-//!     | <type_identifier> '[' <unsigned_integer> ']' // static array
-//!     | <type_identifier> '[]' // dynamic array
+//! <user_defined_type> := <identifier>
+//! <static_array_type> :=
+//!       <builtin_type> '[' <unsigned_integer> ']'
+//!     | <user_defined_type> '[' <unsigned_integer> ']'
+//! <dynamic_array_type> :=
+//!       <builtin_type> '[]'
+//!     | <user_defined_type> '[]'
 //!
 //! <range> := <unsigned_integer> '..' <unsigned_integer>
 //! <identifier> := [a-zA-Z_][a-zA-Z0-9_]*
-//! <unsigned_integer> := [0-9]+ | "0x" [0-9a-fA-F]+ | "0b" [01]+
+//!
+//! <unsigned_integer> := <hexadecimal> | <binary> | <decimal>
+//! <hexadecimal> := "0x" [0-9a-fA-F]+
+//! <binary> := "0b" [01]+
+//! <decimal> := [0-9]+
 //! ```
 //!
 //! This grammar defines the structure of a protocol of the meksmith Lang, whose
@@ -43,22 +57,40 @@ use crate::ast::*;
 
 use chumsky::prelude::*;
 
+/// Parses an unsigned integer in hexadecimal format.
+pub(crate) fn hexadecimal<'src>() -> impl Parser<'src, &'src str, u64, extra::Err<Rich<'src, char>>>
+{
+    just("0x")
+        .ignore_then(text::digits(16).at_least(1).collect::<String>())
+        .map(|s: String| u64::from_str_radix(&s, 16).unwrap())
+        .labelled("hexadecimal")
+        .padded()
+}
+
+/// Parses an unsigned integer in binary format. It supports leading zeros and
+/// only allows `0` and `1` digits.
+pub(crate) fn binary<'src>() -> impl Parser<'src, &'src str, u64, extra::Err<Rich<'src, char>>> {
+    just("0b")
+        .ignore_then(text::digits(2).at_least(1).collect::<String>())
+        .map(|s: String| u64::from_str_radix(&s, 2).unwrap())
+        .labelled("binary")
+        .padded()
+}
+
+/// Parses an unsigned integer in decimal format.
+pub(crate) fn decimal<'src>() -> impl Parser<'src, &'src str, u64, extra::Err<Rich<'src, char>>> {
+    text::digits(10)
+        .at_least(1)
+        .collect::<String>()
+        .map(|s: String| u64::from_str_radix(&s, 10).unwrap())
+        .labelled("decimal")
+        .padded()
+}
+
 /// Parses an unsigned integer in decimal, hexadecimal, or binary format.
 pub(crate) fn unsigned_integer<'src>()
 -> impl Parser<'src, &'src str, u64, extra::Err<Rich<'src, char>>> {
-    let hexadecimal = just("0x")
-        .ignore_then(text::int(16))
-        .map(|s: &str| u64::from_str_radix(s, 16).unwrap());
-
-    let binary = just("0b")
-        .ignore_then(text::int(2))
-        .map(|s: &str| u64::from_str_radix(s, 2).unwrap());
-
-    let decimal = text::int(10).map(|s: &str| s.parse().unwrap());
-
-    choice((hexadecimal, binary, decimal))
-        .labelled("unsigned_integer")
-        .padded()
+    choice((hexadecimal(), binary(), decimal()))
 }
 
 /// Parses an identifier from the input string. Identifier has to start with
@@ -72,77 +104,84 @@ pub(crate) fn identifier<'src>()
         .padded()
 }
 
+/// Parses a built-in type identifier from the input string.
+pub(crate) fn builtin_type<'src>()
+-> impl Parser<'src, &'src str, TypeIdentifier, extra::Err<Rich<'src, char>>> {
+    choice((
+        just("int8").to(TypeIdentifier::Integer8),
+        just("int16").to(TypeIdentifier::Integer16),
+        just("int32").to(TypeIdentifier::Integer32),
+        just("int64").to(TypeIdentifier::Integer64),
+        just("uint8").to(TypeIdentifier::UnsignedInteger8),
+        just("uint16").to(TypeIdentifier::UnsignedInteger16),
+        just("uint32").to(TypeIdentifier::UnsignedInteger32),
+        just("uint64").to(TypeIdentifier::UnsignedInteger64),
+        just("float32").to(TypeIdentifier::Float32),
+        just("float64").to(TypeIdentifier::Float64),
+        just("bit").to(TypeIdentifier::Bit),
+        just("byte").to(TypeIdentifier::Byte),
+    ))
+    .labelled("builtin_type")
+}
+
+/// Parses a user-defined type identifier from the input string.
+pub(crate) fn user_defined_type<'src>()
+-> impl Parser<'src, &'src str, TypeIdentifier, extra::Err<Rich<'src, char>>> {
+    identifier()
+        .map(TypeIdentifier::UserDefined)
+        .labelled("user_defined_type")
+        .padded()
+}
+
+/// Parses a static array type identifier from the input string.
+pub(crate) fn static_array_type<'src>()
+-> impl Parser<'src, &'src str, TypeIdentifier, extra::Err<Rich<'src, char>>> {
+    choice((builtin_type(), user_defined_type()))
+        .then_ignore(just('[').padded())
+        .then(unsigned_integer())
+        .then_ignore(just(']'))
+        .map(|(r#type, size)| TypeIdentifier::StaticArray {
+            r#type: Box::new(r#type),
+            size,
+        })
+        .labelled("static_array_type")
+        .padded()
+}
+
+pub(crate) fn dynamic_array_type<'src>()
+-> impl Parser<'src, &'src str, TypeIdentifier, extra::Err<Rich<'src, char>>> {
+    choice((builtin_type(), user_defined_type()))
+        .then_ignore(just("[]"))
+        .map(|r#type| TypeIdentifier::DynamicArray {
+            r#type: Box::new(r#type),
+        })
+        .labelled("dynamic_array_type")
+        .padded()
+}
+
 /// Parses a type identifier from the input string. It can be a predefined type
 /// like `int8`, `uint16`, `float32`, etc., or a user-defined type.
 /// It can also be a static or dynamic array of a given type.
 /// The static array is defined as `type[size]`, and the dynamic array is defined as `type[]`.
 pub(crate) fn type_identifier<'src>()
 -> impl Parser<'src, &'src str, TypeIdentifier, extra::Err<Rich<'src, char>>> {
-    recursive(|_type_identifier| {
-        let int8 = just("int8").to(TypeIdentifier::Integer8);
-        let int16 = just("int16").to(TypeIdentifier::Integer16);
-        let int32 = just("int32").to(TypeIdentifier::Integer32);
-        let int64 = just("int64").to(TypeIdentifier::Integer64);
-        let uint8 = just("uint8").to(TypeIdentifier::UnsignedInteger8);
-        let uint16 = just("uint16").to(TypeIdentifier::UnsignedInteger16);
-        let uint32 = just("uint32").to(TypeIdentifier::UnsignedInteger32);
-        let uint64 = just("uint64").to(TypeIdentifier::UnsignedInteger64);
-        let float32 = just("float32").to(TypeIdentifier::Float32);
-        let float64 = just("float64").to(TypeIdentifier::Float64);
-        let bit = just("bit").to(TypeIdentifier::Bit);
-        let byte = just("byte").to(TypeIdentifier::Byte);
-        let user_defined = identifier().map(TypeIdentifier::UserDefined).boxed();
-
-        let base_type = choice((
-            int8,
-            int16,
-            int32,
-            int64,
-            uint8,
-            uint16,
-            uint32,
-            uint64,
-            float32,
-            float64,
-            bit,
-            byte,
-            user_defined,
+    recursive(|_| {
+        choice((
+            static_array_type().boxed(),
+            dynamic_array_type().boxed(),
+            builtin_type().boxed(),
+            user_defined_type().boxed(),
         ))
-        .boxed();
-
-        let static_array = base_type
-            .clone()
-            .then_ignore(just('[').padded())
-            .then(unsigned_integer().boxed())
-            .then_ignore(just(']'))
-            .map(|(ty, size)| TypeIdentifier::StaticArray {
-                r#type: Box::new(ty),
-                size,
-            });
-
-        let dynamic_array =
-            base_type
-                .clone()
-                .then_ignore(just("[]"))
-                .map(|ty| TypeIdentifier::DynamicArray {
-                    r#type: Box::new(ty),
-                });
-
-        choice((static_array, dynamic_array, base_type)).labelled("type_identifier")
     })
 }
 
 /// Parses a single value enumeration field in the format `name = value;`
 pub(crate) fn enumeration_field_single_value<'src>()
 -> impl Parser<'src, &'src str, EnumerationField, extra::Err<Rich<'src, char>>> {
-    let name = identifier();
-    let equals = just('=').padded();
-    let value = unsigned_integer();
-    let semicolon = just(';').padded();
-
-    name.then_ignore(equals)
-        .then(value)
-        .then_ignore(semicolon)
+    identifier()
+        .then_ignore(just('=').padded())
+        .then(unsigned_integer())
+        .then_ignore(just(';').padded())
         .map(|(name, value)| EnumerationField::SingleValue { name, value })
         .labelled("enumeration_field_single_value")
         .padded()
@@ -151,13 +190,9 @@ pub(crate) fn enumeration_field_single_value<'src>()
 /// Parses a range of values defined by `start..end`.
 pub(crate) fn range<'src>() -> impl Parser<'src, &'src str, (u64, u64), extra::Err<Rich<'src, char>>>
 {
-    let start = unsigned_integer();
-    let range = just("..").padded();
-    let end = unsigned_integer();
-
-    start
-        .then_ignore(range)
-        .then(end)
+    unsigned_integer()
+        .then_ignore(just("..").padded())
+        .then(unsigned_integer())
         .map(|(start, end)| (start, end))
         .labelled("range")
         .padded()
@@ -166,14 +201,10 @@ pub(crate) fn range<'src>() -> impl Parser<'src, &'src str, (u64, u64), extra::E
 /// Parses a range of values enumeration field in the format `name = start..end;`
 pub(crate) fn enumeration_field_range_of_values<'src>()
 -> impl Parser<'src, &'src str, EnumerationField, extra::Err<Rich<'src, char>>> {
-    let name = identifier();
-    let equals = just('=').padded();
-    let range = range();
-    let semicolon = just(';').padded();
-
-    name.then_ignore(equals)
-        .then(range)
-        .then_ignore(semicolon)
+    identifier()
+        .then_ignore(just('=').padded())
+        .then(range())
+        .then_ignore(just(';').padded())
         .map(|(name, (start, end))| EnumerationField::RangeOfValues { name, start, end })
         .labelled("enumeration_field_range_of_values")
         .padded()
@@ -193,20 +224,17 @@ pub(crate) fn enumeration_field<'src>()
 /// Parses an enumeration with fields.
 pub(crate) fn enumeration_definition<'src>()
 -> impl Parser<'src, &'src str, Enumeration, extra::Err<Rich<'src, char>>> {
-    let enum_keyword = just("enum").padded();
-    let name = identifier();
-    let open_brace = just("{").padded();
-    let fields = enumeration_field()
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<EnumerationField>>();
-    let close_brace = just("};").padded();
-
-    enum_keyword
-        .ignore_then(name)
-        .then_ignore(open_brace)
-        .then(fields)
-        .then_ignore(close_brace)
+    just("enum")
+        .padded()
+        .ignore_then(identifier())
+        .then_ignore(just("{").padded())
+        .then(
+            enumeration_field()
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<EnumerationField>>(),
+        )
+        .then_ignore(just("};").padded())
         .map(|(name, fields)| Enumeration { name, fields })
         .labelled("enumeration")
         .padded()
@@ -215,12 +243,9 @@ pub(crate) fn enumeration_definition<'src>()
 /// Parses a single structure field attribute, which consists of a name and a value.
 pub(crate) fn field_attribute<'src>()
 -> impl Parser<'src, &'src str, FieldAttribute, extra::Err<Rich<'src, char>>> {
-    let name = identifier();
-    let equals = just('=').padded();
-    let value = identifier();
-
-    name.then_ignore(equals)
-        .then(value)
+    identifier()
+        .then_ignore(just('=').padded())
+        .then(identifier())
         .map(|(name, value)| FieldAttribute { name, value })
         .labelled("field_attribute")
         .padded()
@@ -229,8 +254,8 @@ pub(crate) fn field_attribute<'src>()
 /// Parses a structure field attribute tail, which is a comma followed by another attribute.
 pub(crate) fn field_attribute_tail<'src>()
 -> impl Parser<'src, &'src str, FieldAttribute, extra::Err<Rich<'src, char>>> {
-    let comma = just(',').padded();
-    comma
+    just(',')
+        .padded()
         .ignore_then(field_attribute())
         .labelled("field_attribute_tail")
         .padded()
@@ -240,19 +265,18 @@ pub(crate) fn field_attribute_tail<'src>()
 /// and separated by commas.
 pub(crate) fn field_attributes<'src>()
 -> impl Parser<'src, &'src str, Vec<FieldAttribute>, extra::Err<Rich<'src, char>>> {
-    let open_bracket = just('[').padded();
-    let attributes = field_attribute()
-        .then(field_attribute_tail().repeated().collect::<Vec<_>>())
-        .map(|(first, rest)| {
-            let mut attrs = vec![first];
-            attrs.extend(rest);
-            attrs
-        });
-    let close_bracket = just(']').padded();
-
-    open_bracket
-        .ignore_then(attributes)
-        .then_ignore(close_bracket)
+    just('[')
+        .padded()
+        .ignore_then(
+            field_attribute()
+                .then(field_attribute_tail().repeated().collect::<Vec<_>>())
+                .map(|(first, rest)| {
+                    let mut attrs = vec![first];
+                    attrs.extend(rest);
+                    attrs
+                }),
+        )
+        .then_ignore(just(']').padded())
         .labelled("field_attributes")
         .padded()
 }
@@ -260,19 +284,13 @@ pub(crate) fn field_attributes<'src>()
 /// Parses a structure field, which consists of a name and a type identifier.
 pub(crate) fn structure_field<'src>()
 -> impl Parser<'src, &'src str, StructureField, extra::Err<Rich<'src, char>>> {
-    let attributes = field_attributes()
+    field_attributes()
         .or_not()
-        .map(|attrs| attrs.unwrap_or_default());
-    let name = identifier();
-    let colon = just(':').padded();
-    let r#type = type_identifier();
-    let semicolon = just(';').padded();
-
-    attributes
-        .then(name)
-        .then_ignore(colon)
-        .then(r#type)
-        .then_ignore(semicolon)
+        .map(|attrs| attrs.unwrap_or_default())
+        .then(identifier())
+        .then_ignore(just(':').padded())
+        .then(type_identifier())
+        .then_ignore(just(';').padded())
         .map(|((attributes, name), r#type)| StructureField {
             attributes,
             name,
@@ -285,20 +303,17 @@ pub(crate) fn structure_field<'src>()
 /// Parses a structure definition, which consists of a name and a collection of fields.
 pub(crate) fn structure_definition<'src>()
 -> impl Parser<'src, &'src str, Structure, extra::Err<Rich<'src, char>>> {
-    let struct_keyword = just("struct").padded();
-    let name = identifier();
-    let open_brace = just("{").padded();
-    let fields = structure_field()
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<StructureField>>();
-    let close_brace = just("};").padded();
-
-    struct_keyword
-        .ignore_then(name)
-        .then_ignore(open_brace)
-        .then(fields)
-        .then_ignore(close_brace)
+    just("struct")
+        .padded()
+        .ignore_then(identifier())
+        .then_ignore(just("{").padded())
+        .then(
+            structure_field()
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<StructureField>>(),
+        )
+        .then_ignore(just("};").padded())
         .map(|(name, fields)| Structure { name, fields })
         .labelled("structure_definition")
         .padded()
@@ -307,19 +322,12 @@ pub(crate) fn structure_definition<'src>()
 /// Parses a union field, which consists of a discriminator, name, and type identifier.
 pub(crate) fn union_field<'src>()
 -> impl Parser<'src, &'src str, UnionField, extra::Err<Rich<'src, char>>> {
-    let discriminator = unsigned_integer();
-    let assigned_to = just("=>").padded();
-    let name = identifier();
-    let colon = just(':').padded();
-    let r#type = type_identifier();
-    let semicolon = just(';').padded();
-
-    discriminator
-        .then_ignore(assigned_to)
-        .then(name)
-        .then_ignore(colon)
-        .then(r#type)
-        .then_ignore(semicolon)
+    unsigned_integer()
+        .then_ignore(just("=>").padded())
+        .then(identifier())
+        .then_ignore(just(':').padded())
+        .then(type_identifier())
+        .then_ignore(just(';').padded())
         .map(|((discriminator, name), r#type)| UnionField {
             name,
             r#type,
@@ -332,20 +340,17 @@ pub(crate) fn union_field<'src>()
 /// Parses a union definition, which consists of a name and a collection of union fields.
 pub(crate) fn union_definition<'src>()
 -> impl Parser<'src, &'src str, Union, extra::Err<Rich<'src, char>>> {
-    let union_keyword = just("union").padded();
-    let name = identifier();
-    let open_brace = just("{").padded();
-    let fields = union_field()
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<UnionField>>();
-    let close_brace = just("};").padded();
-
-    union_keyword
-        .ignore_then(name)
-        .then_ignore(open_brace)
-        .then(fields)
-        .then_ignore(close_brace)
+    just("union")
+        .padded()
+        .ignore_then(identifier())
+        .then_ignore(just("{").padded())
+        .then(
+            union_field()
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<UnionField>>(),
+        )
+        .then_ignore(just("};").padded())
         .map(|(name, fields)| Union { name, fields })
         .labelled("union")
         .padded()
@@ -354,17 +359,12 @@ pub(crate) fn union_definition<'src>()
 /// Parses a type definition, which consists of a new type name and an existing type.
 pub(crate) fn type_definition<'src>()
 -> impl Parser<'src, &'src str, TypeDefinition, extra::Err<Rich<'src, char>>> {
-    let using = just("using").padded();
-    let new_type = identifier();
-    let equals = just('=').padded();
-    let r#type = type_identifier();
-    let semicolon = just(';').padded();
-
-    using
-        .ignore_then(new_type)
-        .then_ignore(equals)
-        .then(r#type)
-        .then_ignore(semicolon)
+    just("using")
+        .padded()
+        .ignore_then(identifier())
+        .then_ignore(just('=').padded())
+        .then(type_identifier())
+        .then_ignore(just(';').padded())
         .map(|(new_type, r#type)| TypeDefinition { new_type, r#type })
         .labelled("type_definition")
         .padded()
@@ -399,24 +399,58 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_unsigned_integer_with_decimal_number() {
-        let result = unsigned_integer().parse("12345");
+    fn test_hexadecimal() {
+        let result = hexadecimal().parse("0x1A3F");
         assert!(!result.has_errors() && result.has_output());
-        assert_eq!(result.into_output().unwrap(), 12345);
-    }
+        assert_eq!(result.into_output().unwrap(), 0x1A3F);
 
-    #[test]
-    fn test_unsigned_integer_with_hexadecimal_number() {
-        let result = unsigned_integer().parse("0x1A3F");
+        let result = hexadecimal().parse("0x1a3f");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(result.into_output().unwrap(), 0x1A3F);
     }
 
     #[test]
-    fn test_unsigned_integer_with_binary_number() {
-        let result = unsigned_integer().parse("0b1101");
+    fn test_hexadecimal_with_zero_padding() {
+        let result = hexadecimal().parse("0x00FF");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), 0xFF);
+    }
+
+    #[test]
+    fn test_binary() {
+        let result = binary().parse("0b1101");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(result.into_output().unwrap(), 0b1101);
+    }
+
+    #[test]
+    fn test_binary_with_zero_padding() {
+        let result = binary().parse("0b00001101");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), 0b1101);
+    }
+
+    #[test]
+    fn test_decimal() {
+        let result = decimal().parse("12345");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), 12345);
+    }
+
+    #[test]
+    fn test_decimal_with_leading_zeros() {
+        let result = decimal().parse("0012345");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), 12345);
+    }
+
+    #[test]
+    fn test_unsigned_integer() {
+        for value in ["5589", "0x15D5", "0b1010111010101"] {
+            let result = unsigned_integer().parse(value);
+            assert!(!result.has_errors() && result.has_output());
+            assert_eq!(result.into_output().unwrap(), 5589);
+        }
     }
 
     #[test]
