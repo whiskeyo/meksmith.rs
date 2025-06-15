@@ -1,4 +1,4 @@
-//! Grammar for the Meksmith Lang is defined as follows:
+//! Grammar for the meklang is defined as follows:
 //! ```text
 //! <protocol> := <definition>+
 //! <definition> :=
@@ -50,7 +50,7 @@
 //! <decimal> := [0-9]+
 //! ```
 //!
-//! This grammar defines the structure of a protocol of the meksmith Lang, whose
+//! This grammar defines the structure of a protocol of the meklang, whose
 //! main purpose is to define data structures and types that can be used in code generation.
 
 use crate::ast::*;
