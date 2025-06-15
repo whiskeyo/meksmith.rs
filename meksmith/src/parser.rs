@@ -511,7 +511,7 @@ mod tests {
     }
 
     #[test]
-    fn test_type_identifier_builtin_types() {
+    fn test_builtin_type() {
         for (type_str, expected_type) in [
             ("int8", TypeIdentifier::Integer8),
             ("int16", TypeIdentifier::Integer16),
@@ -526,15 +526,15 @@ mod tests {
             ("bit", TypeIdentifier::Bit),
             ("byte", TypeIdentifier::Byte),
         ] {
-            let result = type_identifier().parse(type_str);
+            let result = builtin_type().parse(type_str);
             assert!(!result.has_errors() && result.has_output());
             assert_eq!(result.into_output().unwrap(), expected_type);
         }
     }
 
     #[test]
-    fn test_type_identifier_user_defined() {
-        let result = type_identifier().parse("MyCustomType");
+    fn test_user_defined_type() {
+        let result = user_defined_type().parse("MyCustomType");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
@@ -543,21 +543,8 @@ mod tests {
     }
 
     #[test]
-    fn test_type_identifier_static_array() {
-        let result = type_identifier().parse("MyType[10]");
-        assert!(!result.has_errors() && result.has_output());
-        assert_eq!(
-            result.into_output().unwrap(),
-            TypeIdentifier::StaticArray {
-                r#type: Box::new(TypeIdentifier::UserDefined(Identifier::new("MyType"))),
-                size: 10,
-            }
-        );
-    }
-
-    #[test]
-    fn test_type_identifier_static_array_with_builtin_type() {
-        let result = type_identifier().parse("int32[5]");
+    fn test_static_array_type_with_builtin_type() {
+        let result = static_array_type().parse("int32[5]");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
@@ -569,22 +556,47 @@ mod tests {
     }
 
     #[test]
-    fn test_type_identifier_static_array_with_not_a_number() {
-        let result = type_identifier().parse("int32[invalid]");
+    fn test_static_array_type_with_custom_type() {
+        let result = static_array_type().parse("MyType[10]");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            TypeIdentifier::StaticArray {
+                r#type: Box::new(TypeIdentifier::UserDefined(Identifier::new("MyType"))),
+                size: 10,
+            }
+        );
+    }
+
+    #[test]
+    fn test_static_array_type_with_wrong_size() {
+        let result = static_array_type().parse("int32[invalid]");
         assert!(result.has_errors());
         assert!(!result.has_output());
     }
 
     #[test]
-    fn test_type_identifier_static_array_with_negative_size() {
-        let result = type_identifier().parse("int32[-5]");
+    fn test_static_array_type_with_negative_size() {
+        let result = static_array_type().parse("int32[-5]");
         assert!(result.has_errors());
         assert!(!result.has_output());
     }
 
     #[test]
-    fn test_type_identifier_dynamic_array() {
-        let result = type_identifier().parse("MyType[]");
+    fn test_dynamic_array_type_with_builtin_type() {
+        let result = dynamic_array_type().parse("uint64[]");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            TypeIdentifier::DynamicArray {
+                r#type: Box::new(TypeIdentifier::UnsignedInteger64),
+            }
+        );
+    }
+
+    #[test]
+    fn test_dynamic_array_type_with_user_defined_type() {
+        let result = dynamic_array_type().parse("MyType[]");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
@@ -595,13 +607,43 @@ mod tests {
     }
 
     #[test]
-    fn test_type_identifier_dynamic_array_with_builtin_type() {
-        let result = type_identifier().parse("int32[]");
+    fn test_type_identifier_with_builtin_type() {
+        let result = type_identifier().parse("int32");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(result.into_output().unwrap(), TypeIdentifier::Integer32);
+    }
+
+    #[test]
+    fn test_type_identifier_with_user_defined_type() {
+        let result = type_identifier().parse("MyCustomType");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            TypeIdentifier::UserDefined(Identifier::new("MyCustomType"))
+        );
+    }
+
+    #[test]
+    fn test_type_identifier_with_static_array() {
+        let result = type_identifier().parse("int32[10]");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            TypeIdentifier::StaticArray {
+                r#type: Box::new(TypeIdentifier::Integer32),
+                size: 10,
+            }
+        );
+    }
+
+    #[test]
+    fn test_type_identifier_with_dynamic_array() {
+        let result = type_identifier().parse("uint64[]");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
             TypeIdentifier::DynamicArray {
-                r#type: Box::new(TypeIdentifier::Integer32),
+                r#type: Box::new(TypeIdentifier::UnsignedInteger64),
             }
         );
     }
