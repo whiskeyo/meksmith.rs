@@ -42,10 +42,10 @@ using MyType = int32[10];
         "#;
 
         let result = parse_protocol_to_ast(input);
-        assert!(!result.is_err());
+        assert!(result.is_ok());
         let protocol = result.unwrap();
         assert_eq!(protocol.definitions.len(), 1);
-        if let Definition::TypeDefinition(type_def) = &protocol.definitions[0] {
+        if let Definition::Type(type_def) = &protocol.definitions[0] {
             assert_eq!(type_def.new_type.name, "MyType");
             assert_eq!(
                 type_def.r#type,
@@ -91,10 +91,10 @@ using MyType = int32[10];
             .is_ok()
         );
         let result = parse_protocol_from_file_to_ast(file_path);
-        assert!(!result.is_err());
+        assert!(result.is_ok());
         let protocol = result.unwrap();
         assert_eq!(protocol.definitions.len(), 1);
-        if let Definition::TypeDefinition(type_def) = &protocol.definitions[0] {
+        if let Definition::Type(type_def) = &protocol.definitions[0] {
             assert_eq!(type_def.new_type.name, "MyType");
             assert_eq!(
                 type_def.r#type,

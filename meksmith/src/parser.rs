@@ -82,7 +82,7 @@ pub(crate) fn decimal<'src>() -> impl Parser<'src, &'src str, u64, extra::Err<Ri
     text::digits(10)
         .at_least(1)
         .collect::<String>()
-        .map(|s: String| u64::from_str_radix(&s, 10).unwrap())
+        .map(|s: String| s.parse::<u64>().unwrap())
         .labelled("decimal")
         .padded()
 }
@@ -223,7 +223,7 @@ pub(crate) fn enumeration_field<'src>()
 
 /// Parses an enumeration with fields.
 pub(crate) fn enumeration_definition<'src>()
--> impl Parser<'src, &'src str, Enumeration, extra::Err<Rich<'src, char>>> {
+-> impl Parser<'src, &'src str, EnumerationDefinition, extra::Err<Rich<'src, char>>> {
     just("enum")
         .padded()
         .ignore_then(identifier())
@@ -235,7 +235,7 @@ pub(crate) fn enumeration_definition<'src>()
                 .collect::<Vec<EnumerationField>>(),
         )
         .then_ignore(just("};").padded())
-        .map(|(name, fields)| Enumeration { name, fields })
+        .map(|(name, fields)| EnumerationDefinition { name, fields })
         .labelled("enumeration")
         .padded()
 }
@@ -302,7 +302,7 @@ pub(crate) fn structure_field<'src>()
 
 /// Parses a structure definition, which consists of a name and a collection of fields.
 pub(crate) fn structure_definition<'src>()
--> impl Parser<'src, &'src str, Structure, extra::Err<Rich<'src, char>>> {
+-> impl Parser<'src, &'src str, StructureDefinition, extra::Err<Rich<'src, char>>> {
     just("struct")
         .padded()
         .ignore_then(identifier())
@@ -314,7 +314,7 @@ pub(crate) fn structure_definition<'src>()
                 .collect::<Vec<StructureField>>(),
         )
         .then_ignore(just("};").padded())
-        .map(|(name, fields)| Structure { name, fields })
+        .map(|(name, fields)| StructureDefinition { name, fields })
         .labelled("structure_definition")
         .padded()
 }
@@ -339,7 +339,7 @@ pub(crate) fn union_field<'src>()
 
 /// Parses a union definition, which consists of a name and a collection of union fields.
 pub(crate) fn union_definition<'src>()
--> impl Parser<'src, &'src str, Union, extra::Err<Rich<'src, char>>> {
+-> impl Parser<'src, &'src str, UnionDefinition, extra::Err<Rich<'src, char>>> {
     just("union")
         .padded()
         .ignore_then(identifier())
@@ -351,7 +351,7 @@ pub(crate) fn union_definition<'src>()
                 .collect::<Vec<UnionField>>(),
         )
         .then_ignore(just("};").padded())
-        .map(|(name, fields)| Union { name, fields })
+        .map(|(name, fields)| UnionDefinition { name, fields })
         .labelled("union")
         .padded()
 }
@@ -377,7 +377,7 @@ pub(crate) fn definition<'src>()
         enumeration_definition().map(Definition::Enumeration),
         structure_definition().map(Definition::Structure),
         union_definition().map(Definition::Union),
-        type_definition().map(Definition::TypeDefinition),
+        type_definition().map(Definition::Type),
     ))
     .labelled("definition")
     .padded()
@@ -797,7 +797,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Enumeration {
+            EnumerationDefinition {
                 name: Identifier::new("MyEnum"),
                 fields: vec![
                     EnumerationField::SingleValue {
@@ -824,7 +824,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Enumeration {
+            EnumerationDefinition {
                 name: Identifier::new("MyEnum"),
                 fields: vec![
                     EnumerationField::SingleValue {
@@ -848,7 +848,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Enumeration {
+            EnumerationDefinition {
                 name: Identifier::new("MyEnum"),
                 fields: vec![
                     EnumerationField::SingleValue {
@@ -1015,7 +1015,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Structure {
+            StructureDefinition {
                 name: Identifier::new("MyStruct"),
                 fields: vec![
                     StructureField {
@@ -1042,7 +1042,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Structure {
+            StructureDefinition {
                 name: Identifier::new("MyStruct"),
                 fields: vec![
                     StructureField {
@@ -1151,7 +1151,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Union {
+            UnionDefinition {
                 name: Identifier::new("MyUnion"),
                 fields: vec![
                     UnionField {
@@ -1178,7 +1178,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Union {
+            UnionDefinition {
                 name: Identifier::new("MyUnion"),
                 fields: vec![
                     UnionField {
@@ -1269,7 +1269,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Definition::Enumeration(Enumeration {
+            Definition::Enumeration(EnumerationDefinition {
                 name: Identifier::new("MyEnum"),
                 fields: vec![
                     EnumerationField::SingleValue {
@@ -1293,7 +1293,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Definition::Structure(Structure {
+            Definition::Structure(StructureDefinition {
                 name: Identifier::new("MyStruct"),
                 fields: vec![
                     StructureField {
@@ -1320,7 +1320,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Definition::Union(Union {
+            Definition::Union(UnionDefinition {
                 name: Identifier::new("MyUnion"),
                 fields: vec![
                     UnionField {
@@ -1347,7 +1347,7 @@ mod tests {
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            Definition::TypeDefinition(TypeDefinition {
+            Definition::Type(TypeDefinition {
                 new_type: Identifier::new("MyType"),
                 r#type: TypeIdentifier::Integer32,
             })
@@ -1383,14 +1383,14 @@ union MyUnion {
             result.into_output().unwrap(),
             Protocol {
                 definitions: vec![
-                    Definition::TypeDefinition(TypeDefinition {
+                    Definition::Type(TypeDefinition {
                         new_type: Identifier::new("MyType"),
                         r#type: TypeIdentifier::StaticArray {
                             r#type: Box::new(TypeIdentifier::Integer32),
                             size: 10,
                         },
                     }),
-                    Definition::Enumeration(Enumeration {
+                    Definition::Enumeration(EnumerationDefinition {
                         name: Identifier::new("MyEnum"),
                         fields: vec![
                             EnumerationField::SingleValue {
@@ -1404,7 +1404,7 @@ union MyUnion {
                             }
                         ],
                     }),
-                    Definition::Structure(Structure {
+                    Definition::Structure(StructureDefinition {
                         name: Identifier::new("MyStruct"),
                         fields: vec![
                             StructureField {
@@ -1435,7 +1435,7 @@ union MyUnion {
                             }
                         ],
                     }),
-                    Definition::Union(Union {
+                    Definition::Union(UnionDefinition {
                         name: Identifier::new("MyUnion"),
                         fields: vec![
                             UnionField {

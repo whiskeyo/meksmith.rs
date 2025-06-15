@@ -1,12 +1,12 @@
 pub mod c_smith {
     use crate::ast::{
-        Definition, Enumeration, EnumerationField, Protocol, Structure, TypeDefinition,
-        TypeIdentifier, Union,
+        Definition, EnumerationDefinition, EnumerationField, Protocol, StructureDefinition,
+        TypeDefinition, TypeIdentifier, UnionDefinition,
     };
 
-    fn generate_enumeration_code(enumeration: &Enumeration) -> String {
+    fn generate_enumeration_code(enumeration: &EnumerationDefinition) -> String {
         let mut code = String::new();
-        code.push_str(&format!("typedef enum {{\n"));
+        code.push_str("typedef enum {\n");
         for field in &enumeration.fields {
             match field {
                 EnumerationField::SingleValue { name, value } => {
@@ -69,9 +69,9 @@ pub mod c_smith {
         }
     }
 
-    fn generate_structure_code(structure: &Structure) -> String {
+    fn generate_structure_code(structure: &StructureDefinition) -> String {
         let mut code = String::new();
-        code.push_str(&format!("typedef struct {{\n"));
+        code.push_str("typedef struct {\n");
         for field in &structure.fields {
             match &field.r#type {
                 TypeIdentifier::StaticArray { r#type, size } => {
@@ -95,9 +95,9 @@ pub mod c_smith {
         code
     }
 
-    fn generate_union_code(union: &Union) -> String {
+    fn generate_union_code(union: &UnionDefinition) -> String {
         let mut code = String::new();
-        code.push_str(&format!("typedef union {{\n"));
+        code.push_str("typedef union {\n");
         for field in &union.fields {
             code.push_str(&format!(
                 "    {} {};\n",
@@ -121,7 +121,7 @@ pub mod c_smith {
                 Definition::Structure(structure) => {
                     code.push_str(&generate_structure_code(structure));
                 }
-                Definition::TypeDefinition(type_definition) => {
+                Definition::Type(type_definition) => {
                     code.push_str(&generate_type_definition_code(type_definition));
                 }
                 Definition::Union(union) => {

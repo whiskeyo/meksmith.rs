@@ -57,7 +57,7 @@ pub enum EnumerationField {
 /// Represents an enumeration, which is a user-defined type that consists of
 /// a set of named values, each of which can be a single value or a range of values.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Enumeration {
+pub struct EnumerationDefinition {
     pub name: Identifier,
     pub fields: Vec<EnumerationField>,
 }
@@ -80,7 +80,7 @@ pub struct StructureField {
 /// Represents a structure, which is a user-defined type that consists of
 /// a collection of fields, each with a name and a type.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Structure {
+pub struct StructureDefinition {
     pub name: Identifier,
     pub fields: Vec<StructureField>,
 }
@@ -98,7 +98,7 @@ pub struct UnionField {
 /// Represents a union, which is a user-defined type that can hold one of several
 /// different types of values, each identified by a discriminator.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Union {
+pub struct UnionDefinition {
     pub name: Identifier,
     pub fields: Vec<UnionField>,
 }
@@ -115,10 +115,10 @@ pub struct TypeDefinition {
 /// structure, union, or type definition.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
-    Enumeration(Enumeration),
-    Structure(Structure),
-    Union(Union),
-    TypeDefinition(TypeDefinition),
+    Enumeration(EnumerationDefinition),
+    Structure(StructureDefinition),
+    Union(UnionDefinition),
+    Type(TypeDefinition),
 }
 
 /// Represents the entire protocol, which consists of multiple definitions.
