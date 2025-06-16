@@ -14,7 +14,16 @@ pub fn parse_protocol_to_ast(input: &str) -> Result<Protocol, String> {
     match result.into_result() {
         Ok(ast) => Ok(ast),
         Err(errors) => {
-            let error_messages: Vec<String> = errors.into_iter().map(|e| e.to_string()).collect();
+            let error_messages: Vec<String> = errors
+                .into_iter()
+                .map(|e| {
+                    e.to_string()
+                        + " in "
+                        + &e.span().start.to_string()
+                        + "-"
+                        + &e.span().end.to_string()
+                })
+                .collect();
             Err(format!(
                 "Parsing failed. Errors: {}",
                 error_messages.join(", ")

@@ -1,7 +1,6 @@
 use meksmith::smith::c_smith::generate_c_code_from_string;
 
-fn main() {
-    let input = r#"
+static EXAMPLE_INPUT: &str = r#"
 using FilePath = byte[100];
 
 enum LogLevel {
@@ -35,6 +34,22 @@ struct Log {
 };
 "#;
 
-    let c_code = generate_c_code_from_string(input).expect("Failed to generate C code");
-    println!("{}", c_code);
+fn main() {
+    let input = if let Some(path) = std::env::args().nth(1) {
+        match std::fs::read_to_string(&path) {
+            Ok(contents) => contents,
+            Err(_) => {
+                eprintln!("Failed to read file '{}', using example input.", path);
+                EXAMPLE_INPUT.to_string()
+            }
+        }
+    } else {
+        EXAMPLE_INPUT.to_string()
+    };
+
+    let c_code = generate_c_code_from_string(&input);
+    match c_code {
+        Ok(code) => println!("{}", code),
+        Err(e) => eprintln!("Error generating C code: {}", e),
+    }
 }

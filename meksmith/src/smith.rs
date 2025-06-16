@@ -1,7 +1,7 @@
 pub mod c_smith {
     use crate::ast::{
         Definition, EnumerationDefinition, EnumerationField, Protocol, StructureDefinition,
-        TypeDefinition, TypeIdentifier, UnionDefinition,
+        TypeDefinition, TypeIdentifier, UnionDefinition, UnionField,
     };
 
     fn generate_enumeration_code(enumeration: &EnumerationDefinition) -> String {
@@ -24,7 +24,7 @@ pub mod c_smith {
                     } else {
                         for i in *start..=*end {
                             code.push_str(&format!(
-                                "    {}_{}{} = {},\n",
+                                "    {}_{}_{} = {},\n",
                                 enumeration.name.name, name.name, i, i
                             ));
                         }
@@ -99,11 +99,30 @@ pub mod c_smith {
         let mut code = String::new();
         code.push_str("typedef union {\n");
         for field in &union.fields {
-            code.push_str(&format!(
-                "    {} {};\n",
-                generate_type_identifier_code(&field.r#type),
-                field.name.name
-            ));
+            match field {
+                UnionField::SingleValue { name, r#type, .. } => {
+                    code.push_str(&format!(
+                        "    {} {};\n",
+                        generate_type_identifier_code(r#type),
+                        name.name
+                    ));
+                }
+                UnionField::RangeOfValues {
+                    name,
+                    r#type,
+                    start_discriminator,
+                    end_discriminator,
+                } => {
+                    for i in *start_discriminator..=*end_discriminator {
+                        code.push_str(&format!(
+                            "    {} {}_{};\n",
+                            generate_type_identifier_code(r#type),
+                            name.name,
+                            i
+                        ));
+                    }
+                }
+            }
         }
         code.push_str(&format!("}} {};\n\n", union.name.name));
         code
@@ -160,7 +179,7 @@ mod tests {
 
     static INPUT_FILE_CONTENT: &str = r#"
 enum MyEnum {
-    Value1 = 1;
+    Value = 1;
     Range = 2..5;
 };
 
@@ -179,6 +198,7 @@ union MyUnion {
     1 => field2: MyEnum;
     2 => field3: uint64;
     3 => field4: MyStruct;
+    4..6 => reserved: uint16;
 };
 "#;
 
@@ -186,11 +206,11 @@ union MyUnion {
 #include <stdbool.h>
 
 typedef enum {
-    MyEnum_Value1 = 1,
-    MyEnum_Range2 = 2,
-    MyEnum_Range3 = 3,
-    MyEnum_Range4 = 4,
-    MyEnum_Range5 = 5,
+    MyEnum_Value = 1,
+    MyEnum_Range_2 = 2,
+    MyEnum_Range_3 = 3,
+    MyEnum_Range_4 = 4,
+    MyEnum_Range_5 = 5,
 } MyEnum;
 
 typedef MyEnum my_enum_alias_t;
@@ -208,6 +228,9 @@ typedef union {
     MyEnum field2;
     uint64_t field3;
     MyStruct field4;
+    uint16_t reserved_4;
+    uint16_t reserved_5;
+    uint16_t reserved_6;
 } MyUnion;
 
 "#;

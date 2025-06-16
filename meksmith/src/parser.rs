@@ -14,7 +14,7 @@
 //! <structure_field> := [<field_attributes>] <identifier> ':' <type_identifier> ';'
 //!
 //! <union_definition> := 'union' <identifier> '{' <union_field>+ '};'
-//! <union_field> := <unsigned_integer> '=>' <identifier> ':' <type_identifier> ';'
+//! <union_field> := (<unsigned_integer> | <range>) '=>' <identifier> ':' <type_identifier> ';'
 //!
 //! <field_attribute> := <identifier> '=' <identifier>
 //! <field_attribute_tail> := ',' <field_attribute>
@@ -317,19 +317,50 @@ pub(crate) fn structure_definition<'src>()
         .padded()
 }
 
-/// Parses a union field, which consists of a discriminator, name, and type identifier.
-pub(crate) fn union_field<'src>() -> impl Parser<'src, &'src str, UnionField, ErrorType<'src>> {
+/// Parses a union field with a single discriminator, which consists of a discriminator, name, and type identifier.
+pub(crate) fn union_field_single_value<'src>()
+-> impl Parser<'src, &'src str, UnionField, ErrorType<'src>> {
     unsigned_integer()
         .then_ignore(just("=>").padded())
         .then(identifier())
         .then_ignore(just(':').padded())
         .then(type_identifier())
         .then_ignore(just(';').padded())
-        .map(|((discriminator, name), r#type)| UnionField {
+        .map(|((discriminator, name), r#type)| UnionField::SingleValue {
             name,
             r#type,
             discriminator,
         })
+        .labelled("union_field")
+        .padded()
+}
+
+/// Parses a union field with a range of discriminators, which consists of a start and end discriminator, name, and type identifier.
+pub(crate) fn union_field_range_of_values<'src>()
+-> impl Parser<'src, &'src str, UnionField, ErrorType<'src>> {
+    range()
+        .then_ignore(just("=>").padded())
+        .then(identifier())
+        .then_ignore(just(':').padded())
+        .then(type_identifier())
+        .then_ignore(just(';').padded())
+        .map(
+            |(((start_discriminator, end_discriminator), name), r#type)| {
+                UnionField::RangeOfValues {
+                    name,
+                    r#type,
+                    start_discriminator,
+                    end_discriminator,
+                }
+            },
+        )
+        .labelled("union_field_range_of_values")
+        .padded()
+}
+
+/// Parses a union field, which can either be a single value or a range of values.
+pub(crate) fn union_field<'src>() -> impl Parser<'src, &'src str, UnionField, ErrorType<'src>> {
+    choice((union_field_single_value(), union_field_range_of_values()))
         .labelled("union_field")
         .padded()
 }
@@ -1079,12 +1110,12 @@ mod tests {
     }
 
     #[test]
-    fn test_union_field() {
-        let result = union_field().parse("1 => myField: int32;");
+    fn test_union_field_single_value() {
+        let result = union_field_single_value().parse("1 => myField: int32;");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            UnionField {
+            UnionField::SingleValue {
                 name: Identifier::new("myField"),
                 r#type: TypeIdentifier::Integer32,
                 discriminator: 1,
@@ -1093,12 +1124,12 @@ mod tests {
     }
 
     #[test]
-    fn test_union_field_with_user_defined_type() {
-        let result = union_field().parse("2 => myField: MyCustomType;");
+    fn test_union_field_single_value_with_user_defined_type() {
+        let result = union_field_single_value().parse("2 => myField: MyCustomType;");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            UnionField {
+            UnionField::SingleValue {
                 name: Identifier::new("myField"),
                 r#type: TypeIdentifier::UserDefined(Identifier::new("MyCustomType")),
                 discriminator: 2,
@@ -1107,12 +1138,12 @@ mod tests {
     }
 
     #[test]
-    fn test_union_field_with_static_array() {
-        let result = union_field().parse("3 => myField: int32[10];");
+    fn test_union_field_single_value_with_static_array() {
+        let result = union_field_single_value().parse("3 => myField: int32[10];");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            UnionField {
+            UnionField::SingleValue {
                 name: Identifier::new("myField"),
                 r#type: TypeIdentifier::StaticArray {
                     r#type: Box::new(TypeIdentifier::Integer32),
@@ -1124,17 +1155,60 @@ mod tests {
     }
 
     #[test]
-    fn test_union_field_with_dynamic_array() {
-        let result = union_field().parse("4 => myField: uint64[];");
+    fn test_union_field_single_value_with_dynamic_array() {
+        let result = union_field_single_value().parse("4 => myField: uint64[];");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            UnionField {
+            UnionField::SingleValue {
                 name: Identifier::new("myField"),
                 r#type: TypeIdentifier::DynamicArray {
                     r#type: Box::new(TypeIdentifier::UnsignedInteger64),
                 },
                 discriminator: 4,
+            }
+        );
+    }
+
+    #[test]
+    fn test_union_field_range_of_values() {
+        let result = union_field_range_of_values().parse("1..3 => myField: int32;");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            UnionField::RangeOfValues {
+                name: Identifier::new("myField"),
+                r#type: TypeIdentifier::Integer32,
+                start_discriminator: 1,
+                end_discriminator: 3,
+            }
+        );
+    }
+
+    #[test]
+    fn test_union_field() {
+        let result = union_field().parse("5 => myField: int32;");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            UnionField::SingleValue {
+                name: Identifier::new("myField"),
+                r#type: TypeIdentifier::Integer32,
+                discriminator: 5,
+            }
+        );
+
+        let result = union_field().parse("6..8 => myArray: uint64[];");
+        assert!(!result.has_errors() && result.has_output());
+        assert_eq!(
+            result.into_output().unwrap(),
+            UnionField::RangeOfValues {
+                name: Identifier::new("myArray"),
+                r#type: TypeIdentifier::DynamicArray {
+                    r#type: Box::new(TypeIdentifier::UnsignedInteger64),
+                },
+                start_discriminator: 6,
+                end_discriminator: 8,
             }
         );
     }
@@ -1149,12 +1223,12 @@ mod tests {
             UnionDefinition {
                 name: Identifier::new("MyUnion"),
                 fields: vec![
-                    UnionField {
+                    UnionField::SingleValue {
                         name: Identifier::new("myField"),
                         r#type: TypeIdentifier::Integer32,
                         discriminator: 1,
                     },
-                    UnionField {
+                    UnionField::SingleValue {
                         name: Identifier::new("myArray"),
                         r#type: TypeIdentifier::DynamicArray {
                             r#type: Box::new(TypeIdentifier::UnsignedInteger64),
@@ -1176,12 +1250,12 @@ mod tests {
             UnionDefinition {
                 name: Identifier::new("MyUnion"),
                 fields: vec![
-                    UnionField {
+                    UnionField::SingleValue {
                         name: Identifier::new("myField"),
                         r#type: TypeIdentifier::Integer32,
                         discriminator: 1,
                     },
-                    UnionField {
+                    UnionField::SingleValue {
                         name: Identifier::new("myArray"),
                         r#type: TypeIdentifier::DynamicArray {
                             r#type: Box::new(TypeIdentifier::UnsignedInteger64),
@@ -1318,12 +1392,12 @@ mod tests {
             Definition::Union(UnionDefinition {
                 name: Identifier::new("MyUnion"),
                 fields: vec![
-                    UnionField {
+                    UnionField::SingleValue {
                         name: Identifier::new("myField"),
                         r#type: TypeIdentifier::Integer32,
                         discriminator: 1,
                     },
-                    UnionField {
+                    UnionField::SingleValue {
                         name: Identifier::new("myArray"),
                         r#type: TypeIdentifier::DynamicArray {
                             r#type: Box::new(TypeIdentifier::UnsignedInteger64),
@@ -1433,12 +1507,12 @@ union MyUnion {
                     Definition::Union(UnionDefinition {
                         name: Identifier::new("MyUnion"),
                         fields: vec![
-                            UnionField {
+                            UnionField::SingleValue {
                                 name: Identifier::new("myField"),
                                 r#type: TypeIdentifier::Integer32,
                                 discriminator: 1,
                             },
-                            UnionField {
+                            UnionField::SingleValue {
                                 name: Identifier::new("myArray"),
                                 r#type: TypeIdentifier::DynamicArray {
                                     r#type: Box::new(TypeIdentifier::UnsignedInteger64),

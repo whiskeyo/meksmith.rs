@@ -89,10 +89,18 @@ pub struct StructureDefinition {
 /// a discriminator value that identifies which type the field holds.
 /// The discriminator is an integer value that is unique for each field in the union.
 #[derive(Debug, Clone, PartialEq)]
-pub struct UnionField {
-    pub name: Identifier,
-    pub r#type: TypeIdentifier,
-    pub discriminator: u64,
+pub enum UnionField {
+    SingleValue {
+        name: Identifier,
+        r#type: TypeIdentifier,
+        discriminator: u64,
+    },
+    RangeOfValues {
+        name: Identifier,
+        r#type: TypeIdentifier,
+        start_discriminator: u64,
+        end_discriminator: u64,
+    },
 }
 
 /// Represents a union, which is a user-defined type that can hold one of several
