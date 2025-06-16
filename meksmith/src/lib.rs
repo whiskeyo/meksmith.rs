@@ -7,6 +7,26 @@ use crate::parser::protocol;
 
 use chumsky::Parser;
 
+/// Based on the provided input, returns the line and column number of the error encountered during parsing.
+fn get_error_location(input: &str, error: crate::parser::RichError) -> (usize, usize) {
+    let mut line = 1;
+    let mut column = 1;
+
+    for (i, c) in input.char_indices() {
+        if i >= error.span().start && i < error.span().end {
+            return (line, column);
+        }
+        if c == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+
+    (line, column)
+}
+
 /// Parses a protocol from a string input and returns the resulting AST.
 pub fn parse_protocol_to_ast(input: &str) -> Result<Protocol, String> {
     let result = protocol().parse(input);
@@ -17,11 +37,12 @@ pub fn parse_protocol_to_ast(input: &str) -> Result<Protocol, String> {
             let error_messages: Vec<String> = errors
                 .into_iter()
                 .map(|e| {
+                    let (line, column) = get_error_location(input, e.clone());
                     e.to_string()
                         + " in "
-                        + &e.span().start.to_string()
-                        + "-"
-                        + &e.span().end.to_string()
+                        + line.to_string().as_str()
+                        + ":"
+                        + column.to_string().as_str()
                 })
                 .collect();
             Err(format!(
@@ -79,7 +100,7 @@ using MyType = int32[10;
         assert!(
             result
                 .unwrap_err()
-                .eq("Parsing failed. Errors: found ';' expected digit, or ']'")
+                .contains("Parsing failed. Errors: found ';' expected digit, or ']'")
         );
     }
 

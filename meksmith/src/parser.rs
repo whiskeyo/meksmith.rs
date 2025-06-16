@@ -57,7 +57,8 @@ use crate::ast::*;
 
 use chumsky::prelude::*;
 
-type ErrorType<'src> = extra::Err<Rich<'src, char>>;
+pub(crate) type RichError<'src> = chumsky::error::Rich<'src, char>;
+pub(crate) type ErrorType<'src> = extra::Err<RichError<'src>>;
 
 /// Parses an unsigned integer in hexadecimal format.
 pub(crate) fn hexadecimal<'src>() -> impl Parser<'src, &'src str, u64, ErrorType<'src>> {
