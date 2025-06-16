@@ -1,11 +1,11 @@
 struct EcpriMessage {
-    [size=bits4]
+    [bits=4]
     protocol_revision: EcpriProtocolRevision;
-    [size=bits3]
+    [bits=3]
     reserved: uint8;
-    [size=bits1]
+    [bits=1]
     concatenation_indicator: bit;
-    [size=bits8]
+    [bits=8]
     message_type: EcpriMessageType;
     payload_size: uint16;
     [discriminated_by=message_type]
@@ -75,4 +75,17 @@ struct GenericDataTransfer {
     seq_id: uint32;
     user_data_samples: uint16[4];
     control_information: uint16[4];
+};
+
+struct RemoteMemoryAccess {
+    remote_memory_access_id: uint8;
+    [bits=4]
+    read_write: RemoteMemoryAccessReadWrite;
+    [bits=4]
+    req_resp: RemoteMemoryAccessReqResp;
+    element_id: uint16;
+    [bits=48]
+    address: uint64;
+    length: uint16;
+    data: byte[];
 };

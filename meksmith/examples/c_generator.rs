@@ -1,5 +1,3 @@
-use meksmith::smith::c_smith::generate_c_code_from_string;
-
 static EXAMPLE_INPUT: &str = r#"
 using FilePath = byte[100];
 
@@ -47,8 +45,7 @@ fn main() {
         EXAMPLE_INPUT.to_string()
     };
 
-    let c_code = generate_c_code_from_string(&input);
-    match c_code {
+    match meksmith::smith_c::generate_c_code_from_string(&input) {
         Ok(code) => println!("{}", code),
         Err(e) => eprintln!("Error generating C code: {}", e),
     }

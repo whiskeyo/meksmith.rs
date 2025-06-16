@@ -1,6 +1,6 @@
 mod ast;
 mod parser;
-pub mod smith;
+pub mod smith_c;
 
 use crate::ast::*;
 use crate::parser::protocol;
