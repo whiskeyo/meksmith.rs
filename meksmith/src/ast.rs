@@ -64,9 +64,10 @@ pub struct EnumerationDefinition {
 
 /// Represents a single attribute of a field in a structure or union.
 #[derive(Debug, Clone, PartialEq)]
-pub struct FieldAttribute {
-    pub name: Identifier,
-    pub value: Identifier,
+pub enum Attribute {
+    DiscriminatedBy { field: Identifier },
+    BitsSize { size: u64 },
+    BytesSize { size: u64 },
 }
 
 /// Represents a single field in a structure, which consists of an attribute list, name and a type.
@@ -74,7 +75,7 @@ pub struct FieldAttribute {
 pub struct StructureField {
     pub name: Identifier,
     pub r#type: TypeIdentifier,
-    pub attributes: Vec<FieldAttribute>,
+    pub attributes: Vec<Attribute>,
 }
 
 /// Represents a structure, which is a user-defined type that consists of

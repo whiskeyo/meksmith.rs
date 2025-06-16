@@ -12,14 +12,17 @@
 //! <enumeration_field> := <identifier> '=' (<unsigned_integer> | <range>) ';'
 //!
 //! <structure_definition> := 'struct' <identifier> '{' <structure_field>+ '};'
-//! <structure_field> := [<field_attributes>] <identifier> ':' <type_identifier> ';'
+//! <structure_field> := [<attributes>] <identifier> ':' <type_identifier> ';'
 //!
 //! <union_definition> := 'union' <identifier> '{' <union_field>+ '};'
 //! <union_field> := (<unsigned_integer> | <range>) '=>' <identifier> ':' <type_identifier> ';'
 //!
-//! <field_attribute> := <identifier> '=' <identifier>
-//! <field_attribute_tail> := ',' <field_attribute>
-//! <field_attributes> := '[' <field_attribute> <field_attribute_tail>* ']'
+//! <attribute> :=
+//!       'discriminated_by' '=' <identifier>
+//!     | 'bits' '=' <unsigned_integer>
+//!     | 'bytes' '=' <unsigned_integer>
+//! <attribute_tail> := ',' <attribute>
+//! <attributes> := '[' <attribute> <attribute_tail>* ']'
 //!
 //! <type_definition> := 'using' <identifier> '=' <type_identifier> ';'
 //!
@@ -245,35 +248,42 @@ pub(crate) fn enumeration_definition<'src>()
 }
 
 /// Parses a single structure field attribute, which consists of a name and a value.
-pub(crate) fn field_attribute<'src>()
--> impl Parser<'src, &'src str, FieldAttribute, ErrorType<'src>> {
-    identifier()
-        .then_ignore(just('=').padded())
-        .then(identifier())
-        .map(|(name, value)| FieldAttribute { name, value })
-        .labelled("field_attribute")
-        .padded()
+pub(crate) fn attribute<'src>() -> impl Parser<'src, &'src str, Attribute, ErrorType<'src>> {
+    choice((
+        just("discriminated_by")
+            .ignore_then(just('=').padded())
+            .ignore_then(identifier())
+            .map(|field| Attribute::DiscriminatedBy { field }),
+        just("bits")
+            .ignore_then(just('=').padded())
+            .ignore_then(unsigned_integer())
+            .map(|size| Attribute::BitsSize { size }),
+        just("bytes")
+            .ignore_then(just('=').padded())
+            .ignore_then(unsigned_integer())
+            .map(|size| Attribute::BytesSize { size }),
+    ))
+    .labelled("attribute")
+    .padded()
 }
 
 /// Parses a structure field attribute tail, which is a comma followed by another attribute.
-pub(crate) fn field_attribute_tail<'src>()
--> impl Parser<'src, &'src str, FieldAttribute, ErrorType<'src>> {
+pub(crate) fn attribute_tail<'src>() -> impl Parser<'src, &'src str, Attribute, ErrorType<'src>> {
     just(',')
         .padded()
-        .ignore_then(field_attribute())
-        .labelled("field_attribute_tail")
+        .ignore_then(attribute())
+        .labelled("attribute_tail")
         .padded()
 }
 
 /// Parses a collection of structure field attributes, which are enclosed in square brackets
 /// and separated by commas.
-pub(crate) fn field_attributes<'src>()
--> impl Parser<'src, &'src str, Vec<FieldAttribute>, ErrorType<'src>> {
+pub(crate) fn attributes<'src>() -> impl Parser<'src, &'src str, Vec<Attribute>, ErrorType<'src>> {
     just('[')
         .padded()
         .ignore_then(
-            field_attribute()
-                .then(field_attribute_tail().repeated().collect::<Vec<_>>())
+            attribute()
+                .then(attribute_tail().repeated().collect::<Vec<_>>())
                 .map(|(first, rest)| {
                     let mut attrs = vec![first];
                     attrs.extend(rest);
@@ -281,14 +291,14 @@ pub(crate) fn field_attributes<'src>()
                 }),
         )
         .then_ignore(just(']').padded())
-        .labelled("field_attributes")
+        .labelled("attributes")
         .padded()
 }
 
 /// Parses a structure field, which consists of a name and a type identifier.
 pub(crate) fn structure_field<'src>()
 -> impl Parser<'src, &'src str, StructureField, ErrorType<'src>> {
-    field_attributes()
+    attributes()
         .or_not()
         .map(|attrs| attrs.unwrap_or_default())
         .then(identifier())
@@ -931,69 +941,60 @@ mod tests {
     }
 
     #[test]
-    fn test_field_attribute() {
-        let result = field_attribute().parse("myAttribute = myValue");
+    fn test_attribute_discriminated_by() {
+        let result = attribute().parse("discriminated_by = discrimnatorField");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            FieldAttribute {
-                name: Identifier::new("myAttribute"),
-                value: Identifier::new("myValue"),
+            Attribute::DiscriminatedBy {
+                field: Identifier::new("discrimnatorField")
             }
         );
     }
 
     #[test]
-    fn test_field_attribute_invalid_syntax() {
-        let result = field_attribute().parse("myAttribute myValue");
+    fn test_attribute_invalid_syntax() {
+        let result = attribute().parse("myAttribute myValue");
         assert!(result.has_errors());
         assert!(!result.has_output());
     }
 
     #[test]
-    fn test_field_attribute_without_spaces() {
-        let result = field_attribute().parse("myAttribute=myValue");
+    fn test_attribute_without_spaces() {
+        let result = attribute().parse("discriminated_by=discrimnatorField");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            FieldAttribute {
-                name: Identifier::new("myAttribute"),
-                value: Identifier::new("myValue"),
+            Attribute::DiscriminatedBy {
+                field: Identifier::new("discrimnatorField")
             }
         );
     }
 
     #[test]
-    fn test_field_attribute_tail() {
-        let result = field_attribute_tail().parse(", anotherAttribute = anotherValue");
+    fn test_attribute_tail() {
+        let result = attribute_tail().parse(", bits = 10");
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
-            FieldAttribute {
-                name: Identifier::new("anotherAttribute"),
-                value: Identifier::new("anotherValue"),
-            }
+            Attribute::BitsSize { size: 10 }
         );
     }
 
     #[test]
-    fn test_field_attributes() {
-        let result =
-            field_attributes().parse("[myAttribute = myValue, anotherAttribute = anotherValue]");
+    fn test_attributes() {
+        let input = "[discriminated_by = discriminatorField, bits = 10]";
+        let result = attributes().parse(input);
 
         println!("{:?}", result);
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
             vec![
-                FieldAttribute {
-                    name: Identifier::new("myAttribute"),
-                    value: Identifier::new("myValue"),
+                Attribute::DiscriminatedBy {
+                    field: Identifier::new("discriminatorField")
                 },
-                FieldAttribute {
-                    name: Identifier::new("anotherAttribute"),
-                    value: Identifier::new("anotherValue"),
-                }
+                Attribute::BitsSize { size: 10 },
             ]
         );
     }
@@ -1482,7 +1483,7 @@ enum MyEnum {
 struct MyStruct {
     myField: int32;
     myArray: uint64[];
-    [someAttribute = someValue, differentAttribute = differentValue]
+    [bits = 5, bytes = 10, discriminated_by = myType]
     myType: MyType;
 };
 #and without space it also does work
@@ -1539,13 +1540,10 @@ union MyUnion {
                             },
                             StructureField {
                                 attributes: vec![
-                                    FieldAttribute {
-                                        name: Identifier::new("someAttribute"),
-                                        value: Identifier::new("someValue"),
-                                    },
-                                    FieldAttribute {
-                                        name: Identifier::new("differentAttribute"),
-                                        value: Identifier::new("differentValue"),
+                                    Attribute::BitsSize { size: 5 },
+                                    Attribute::BytesSize { size: 10 },
+                                    Attribute::DiscriminatedBy {
+                                        field: Identifier::new("myType"),
                                     }
                                 ],
                                 name: Identifier::new("myType"),
