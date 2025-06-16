@@ -1,6 +1,7 @@
 //! Grammar for the meklang is defined as follows:
 //! ```text
-//! <protocol> := <definition>+
+//! <protocol> := (<definition> | <comment>)+
+//! <comment> := '#' <text> '\n'
 //! <definition> :=
 //!       <enumeration_definition>
 //!     | <structure_definition>
@@ -48,10 +49,14 @@
 //! <hexadecimal> := "0x" [0-9a-fA-F]+
 //! <binary> := "0b" [01]+
 //! <decimal> := [0-9]+
+//!
+//! <text> := [^\n]*
 //! ```
 //!
 //! This grammar defines the structure of a protocol of the meklang, whose
 //! main purpose is to define data structures and types that can be used in code generation.
+//!
+//! Currently `<comment>` is supported only in between definitions, but not inside them.
 
 use crate::ast::*;
 
@@ -411,12 +416,31 @@ pub(crate) fn definition<'src>() -> impl Parser<'src, &'src str, Definition, Err
     .padded()
 }
 
-/// Parses the entire protocol, which consists of multiple definitions.
+/// Parses a comment which is the whole line starting with `#` and ending with a newline.
+pub(crate) fn comment<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just('#')
+        .ignore_then(
+            any()
+                .filter(|c| *c != '\n' && *c != '\r')
+                .repeated()
+                .ignore_then(text::newline().or(end())),
+        )
+        .map(|_| ())
+        .labelled("comment")
+        .padded()
+}
+
+/// Parses the entire protocol, which consists of multiple definitions and comments
+/// that can be mixed (i.e. definition, comment, definition, definition, comment, etc.).
 pub(crate) fn protocol<'src>() -> impl Parser<'src, &'src str, Protocol, ErrorType<'src>> {
-    definition()
+    // Accept either a definition or a comment, and collect only definitions
+    choice((definition().map(Some), comment().to(None)))
         .repeated()
-        .collect::<Vec<Definition>>()
-        .map(|definitions| Protocol { definitions })
+        .collect::<Vec<Option<Definition>>>()
+        .map(|items| {
+            let definitions = items.into_iter().filter_map(|item| item).collect();
+            Protocol { definitions }
+        })
         .labelled("protocol")
         .padded()
 }
@@ -1425,22 +1449,43 @@ mod tests {
     }
 
     #[test]
+    fn test_comment_starting_after_space() {
+        let input = "# This is a comment\n";
+        let result = comment().parse(input);
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_comment_starting_after_indent() {
+        let input = "    # This is a comment with leading spaces\n";
+        let result = comment().parse(input);
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_comment_without_space() {
+        let input = "#This is a comment without leading space";
+        let result = comment().parse(input);
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
     fn test_protocol() {
         let input = r#"
 using MyType = int32[10];
-
+# full line comment does not break things
 enum MyEnum {
     myField = 42;
     myRange = 10..20;
 };
-
+        # some strange formatted comment also works
 struct MyStruct {
     myField: int32;
     myArray: uint64[];
     [someAttribute = someValue, differentAttribute = differentValue]
     myType: MyType;
 };
-
+#and without space it also does work
 union MyUnion {
     1 => myField: int32;
     2 => myArray: uint64[];
@@ -1448,6 +1493,9 @@ union MyUnion {
 "#;
 
         let result = protocol().parse(input);
+        for error in result.errors() {
+            eprintln!("Error: {}", error);
+        }
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
