@@ -438,7 +438,7 @@ pub(crate) fn protocol<'src>() -> impl Parser<'src, &'src str, Protocol, ErrorTy
         .repeated()
         .collect::<Vec<Option<Definition>>>()
         .map(|items| {
-            let definitions = items.into_iter().filter_map(|item| item).collect();
+            let definitions = items.into_iter().flatten().collect();
             Protocol { definitions }
         })
         .labelled("protocol")
