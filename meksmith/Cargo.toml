@@ -1,0 +1,15 @@
+[package]
+name = "meksmith"
+version = "0.0.1"
+edition = "2024"
+repository = "https://github.com/whiskeyo/meksmith.rs"
+
+[dependencies]
+chumsky = "0.10.1"
+
+[dev-dependencies]
+tempfile = "3.20.0"
+
+[[example]]
+name = "c_generator"
+path = "examples/c_generator.rs"

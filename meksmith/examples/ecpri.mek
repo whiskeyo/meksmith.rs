@@ -1,0 +1,91 @@
+struct EcpriMessage {
+    [bits=4]
+    protocol_revision: EcpriProtocolRevision;
+    [bits=3]
+    reserved: uint8;
+    [bits=1]
+    concatenation_indicator: bit;
+    [bits=8]
+    message_type: EcpriMessageType;
+    payload_size: uint16;
+    [discriminated_by=message_type]
+    payload: Payload;
+};
+
+enum EcpriProtocolRevision {
+    reserved =                 0b0000;
+    releases_from_1_0_to_2_0 = 0b0001;
+    reserved =                 0b0010..0b1111;
+};
+
+enum EcpriMessageType {
+    iq_data = 0;
+    bit_sequence = 1;
+    real_time_control_data = 2;
+    generic_data_transfer = 3;
+    remote_memory_access = 4;
+    one_way_delay_measurement = 5;
+    remote_reset = 6;
+    event_indication = 7;
+    iwf_start_up = 8;
+    iwf_operation = 9;
+    iwf_mapping = 10;
+    iwf_delay_control = 11;
+    reserved = 12..63;
+    vendor_specific = 64..255;
+};
+
+union Payload {
+    0 => iq_data: IQData;
+    1 => bit_sequence: BitSequence;
+    2 => real_time_control_data: RealTimeControlData;
+    3 => generic_data_transfer: GenericDataTransfer;
+    4 => remote_memory_access: RemoteMemoryAccess;
+    5 => one_way_delay_measurement: OneWayDelayMeasurement;
+    6 => remote_reset: RemoteReset;
+    7 => event_indication: EventIndication;
+    8 => iwf_start_up: IWFStartUp;
+    9 => iwf_operation: IWFOperation;
+    10 => iwf_mapping: IWFMapping;
+    11 => iwf_delay_control: IWFDelayControl;
+    12..63 => reserved: byte;
+    64..255 => vendor_specific: byte;
+};
+
+struct IQData {
+    pc_id: uint16;
+    seq_id: uint16;
+    iq_samples_of_user_data: uint16[16];
+};
+
+struct BitSequence {
+    pc_id: uint16;
+    seq_id: uint16;
+    channel_coded_data_before_modulation_mapping: uint64[2];
+};
+
+struct RealTimeControlData {
+    rtc_id: uint16;
+    seq_id: uint16;
+    vendor_specific: uint8[128];
+};
+
+struct GenericDataTransfer {
+    pc_id: uint32;
+    seq_id: uint32;
+    user_data_samples: uint16[4];
+    control_information: uint16[4];
+};
+
+struct RemoteMemoryAccess {
+    remote_memory_access_id: uint8;
+    [bits=4]
+    read_write: RemoteMemoryAccessReadWrite;
+    [bits=4]
+    req_resp: RemoteMemoryAccessReqResp;
+    element_id: uint16;
+    [bits=48]
+    address: uint64;
+    length: uint16;
+    data: byte[];
+};

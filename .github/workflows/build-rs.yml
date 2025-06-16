@@ -1,4 +1,4 @@
-name: codegen.rs build & test
+name: meksmith.rs build & test
 
 on:
   push:
@@ -10,24 +10,50 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  linux:
-    name: codegen.rs build & test
+  check:
+    name: meksmith.rs check
     runs-on: ubuntu-latest
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
 
-      - name: Build development version
-        run: cargo build --verbose
-
-      - name: Check the formatting of the code
-        run: cargo fmt --all -- --check
+      - name: Install Rust + extra components
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
 
       - name: Check the package and dependencies for errors
-        run: cargo check --verbose
+        run: cargo check
+
+      - name: Run cargo check (all features)
+        run: cargo check --benches --examples --tests --verbose --all-features
+
+      - name: Run cargo check (no features)
+        run: cargo check --benches --examples --tests --verbose --no-default-features
+
+      - name: Run cargo clippy
+        run: cargo clippy --benches --examples --tests --verbose --all-features -- -D warnings
+
+      - name: Check the formatting of the code
+        run: cargo fmt --all --verbose --check
+
+      - name: Check the documentation
+        run: cargo doc --no-deps --document-private-items --all-features
+
+  test:
+    name: meksmith.rs test
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust + extra components
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
 
       - name: Run unit and integration tests
-        run: cargo test --verbose
-
-      - name: Build release version
-        run: cargo build --release --verbose
+        run: cargo test --verbose --all-features

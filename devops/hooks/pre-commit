@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+echo "Running cargo check (all features)..."
+cargo check --benches --examples --tests --all-features
+
+echo "Running cargo check (no features)..."
+cargo check --benches --examples --tests --no-default-features
+
+echo "Running cargo clippy..."
+cargo clippy --benches --examples --tests --all-features -- -D warnings
+
+echo "Checking code formatting..."
+cargo fmt --all --check
+
+echo "Running cargo test..."
+cargo test --benches --examples --tests --all-features
+
+echo "All checks passed."
