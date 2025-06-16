@@ -1,59 +1,70 @@
 //! Grammar for the meklang is defined as follows:
 //! ```text
-//! <protocol> := (<definition> | <comment>)+
-//! <comment> := '#' <text> '\n'
-//! <definition> :=
+//! <protocol> ::= (<definition> | <comment>)+
+//! <comment> ::= '#' <text> '\n'
+//! <definition> ::=
 //!       <enumeration_definition>
 //!     | <structure_definition>
 //!     | <union_definition>
 //!     | <type_definition>
 //!
-//! <enumeration_definition> := 'enum' <identifier> '{' <enumeration_field>+ '};'
-//! <enumeration_field> := <identifier> '=' (<unsigned_integer> | <range>) ';'
+//! <enumeration_definition> ::= 'enum' <identifier> <left_brace> <enumeration_field>+ <right_brace> <semicolon>
+//! <enumeration_field> ::= <identifier> <equal> (<unsigned_integer> | <range>) <semicolon>
 //!
-//! <structure_definition> := 'struct' <identifier> '{' <structure_field>+ '};'
-//! <structure_field> := [<attributes>] <identifier> ':' <type_identifier> ';'
+//! <structure_definition> ::= 'struct' <identifier> <left_brace> <structure_field>+ <right_brace> <semicolon>
+//! <structure_field> ::= [<attributes>] <identifier> <colon> <type_identifier> <semicolon>
 //!
-//! <union_definition> := 'union' <identifier> '{' <union_field>+ '};'
-//! <union_field> := (<unsigned_integer> | <range>) '=>' <identifier> ':' <type_identifier> ';'
+//! <union_definition> ::= 'union' <identifier> <left_brace> <union_field>+ <right_brace> <semicolon>
+//! <union_field> ::= (<unsigned_integer> | <range>) <maps_to> <identifier> <colon> <type_identifier> <semicolon>
 //!
-//! <attribute> :=
-//!       'discriminated_by' '=' <identifier>
-//!     | 'bits' '=' <unsigned_integer>
-//!     | 'bytes' '=' <unsigned_integer>
-//! <attribute_tail> := ',' <attribute>
-//! <attributes> := '[' <attribute> <attribute_tail>* ']'
+//! <attribute> ::=
+//!       'discriminated_by' <equal> <identifier>
+//!     | 'bits' <equal> <unsigned_integer>
+//!     | 'bytes' <equal> <unsigned_integer>
+//! <attribute_tail> ::= <comma> <attribute>
+//! <attributes> ::= <left_bracket> <attribute> <attribute_tail>* <right_bracket>
 //!
-//! <type_definition> := 'using' <identifier> '=' <type_identifier> ';'
+//! <type_definition> ::= 'using' <identifier> <equal> <type_identifier> <semicolon>
 //!
-//! <type_identifier> :=
+//! <type_identifier> ::=
 //!       <builtin_type>
 //!     | <user_defined_type>
 //!     | <static_array_type>
 //!     | <dynamic_array_type>
 //!
-//! <builtin_type> :=
+//! <builtin_type> ::=
 //!       'int8' | 'int16' | 'int32' | 'int64'
 //!     | 'uint8' | 'uint16' | 'uint32' | 'uint64'
 //!     | 'float32' | 'float64'
 //!     | 'bit' | 'byte'
-//! <user_defined_type> := <identifier>
-//! <static_array_type> :=
-//!       <builtin_type> '[' <unsigned_integer> ']'
-//!     | <user_defined_type> '[' <unsigned_integer> ']'
-//! <dynamic_array_type> :=
-//!       <builtin_type> '[]'
-//!     | <user_defined_type> '[]'
+//! <user_defined_type> ::= <identifier>
+//! <static_array_type> ::=
+//!       <builtin_type> <left_bracket> <unsigned_integer> <right_bracket>
+//!     | <user_defined_type> <left_bracket> <unsigned_integer> <right_bracket>
+//! <dynamic_array_type> ::=
+//!       <builtin_type> <left_bracket> <right_bracket>
+//!     | <user_defined_type> <left_bracket> <right_bracket>
 //!
-//! <range> := <unsigned_integer> '..' <unsigned_integer>
-//! <identifier> := [a-zA-Z_][a-zA-Z0-9_]*
+//! <range> ::= <unsigned_integer> <double_dot> <unsigned_integer>
+//! <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
 //!
-//! <unsigned_integer> := <hexadecimal> | <binary> | <decimal>
-//! <hexadecimal> := "0x" [0-9a-fA-F]+
-//! <binary> := "0b" [01]+
-//! <decimal> := [0-9]+
+//! <unsigned_integer> ::= <hexadecimal> | <binary> | <decimal>
+//! <hexadecimal> ::= "0x" [0-9a-fA-F]+
+//! <binary> ::= "0b" [01]+
+//! <decimal> ::= [0-9]+
 //!
-//! <text> := [^\n]*
+//! <text> ::= [^\n]*
+//!
+//! <left_brace> ::= '{'
+//! <right_brace> ::= '}'
+//! <left_bracket> ::= '['
+//! <right_bracket> ::= ']'
+//! <semicolon> ::= <semicolon>
+//! <colon> ::= ':'
+//! <maps_to> ::= '=>'
+//! <equal> ::= '='
+//! <comma> ::= ','
+//! <double_dot> ::= '..'
 //! ```
 //!
 //! This grammar defines the structure of a protocol of the meklang, whose
@@ -67,6 +78,56 @@ use chumsky::prelude::*;
 
 pub(crate) type RichError<'src> = chumsky::error::Rich<'src, char>;
 pub(crate) type ErrorType<'src> = extra::Err<RichError<'src>>;
+
+/// Parses a left brace `{` followed by optional whitespace.
+pub(crate) fn left_brace<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just('{').padded().to(()).labelled("left brace ({)")
+}
+
+/// Parses a left brace `}` followed by optional whitespace.
+pub(crate) fn right_brace<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just('}').padded().to(()).labelled("right brace (})")
+}
+
+/// Parses a left bracket `[` followed by optional whitespace.
+pub(crate) fn left_bracket<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just('[').padded().to(()).labelled("left bracket ([)")
+}
+
+/// Parses a right bracket `]` followed by optional whitespace.
+pub(crate) fn right_bracket<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just(']').padded().to(()).labelled("right bracket (])")
+}
+
+/// Parses a semicolon `;` followed by optional whitespace.
+pub(crate) fn semicolon<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just(';').padded().to(()).labelled("semicolon (;)")
+}
+
+/// Parses a colon `:` followed by optional whitespace.
+pub(crate) fn colon<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just(':').padded().to(()).labelled("colon (:)")
+}
+
+/// Parses a maps to operator `=>` followed by optional whitespace.
+pub(crate) fn maps_to<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just("=>").padded().to(()).labelled("maps to (=>)")
+}
+
+/// Parses an equal sign `=` followed by optional whitespace.
+pub(crate) fn equal<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just('=').padded().to(()).labelled("equal (=)")
+}
+
+/// Parses a comma `,` followed by optional whitespace.
+pub(crate) fn comma<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just(',').padded().to(()).labelled("comma (,)")
+}
+
+/// Parses a double dot `..` followed by optional whitespace.
+pub(crate) fn double_dot<'src>() -> impl Parser<'src, &'src str, (), ErrorType<'src>> {
+    just("..").padded().to(()).labelled("double dot (..)")
+}
 
 /// Parses an unsigned integer in hexadecimal format.
 pub(crate) fn hexadecimal<'src>() -> impl Parser<'src, &'src str, u64, ErrorType<'src>> {
@@ -99,7 +160,7 @@ pub(crate) fn decimal<'src>() -> impl Parser<'src, &'src str, u64, ErrorType<'sr
 
 /// Parses an unsigned integer in decimal, hexadecimal, or binary format.
 pub(crate) fn unsigned_integer<'src>() -> impl Parser<'src, &'src str, u64, ErrorType<'src>> {
-    choice((hexadecimal(), binary(), decimal()))
+    choice((hexadecimal(), binary(), decimal())).labelled("unsigned_integer")
 }
 
 /// Parses an identifier from the input string. Identifier has to start with
@@ -129,7 +190,7 @@ pub(crate) fn builtin_type<'src>() -> impl Parser<'src, &'src str, TypeIdentifie
         just("bit").to(TypeIdentifier::Bit),
         just("byte").to(TypeIdentifier::Byte),
     ))
-    .labelled("builtin_type")
+    .labelled("builtin type")
 }
 
 /// Parses a user-defined type identifier from the input string.
@@ -137,7 +198,7 @@ pub(crate) fn user_defined_type<'src>()
 -> impl Parser<'src, &'src str, TypeIdentifier, ErrorType<'src>> {
     identifier()
         .map(TypeIdentifier::UserDefined)
-        .labelled("user_defined_type")
+        .labelled("user defined type")
         .padded()
 }
 
@@ -145,25 +206,26 @@ pub(crate) fn user_defined_type<'src>()
 pub(crate) fn static_array_type<'src>()
 -> impl Parser<'src, &'src str, TypeIdentifier, ErrorType<'src>> {
     choice((builtin_type(), user_defined_type()))
-        .then_ignore(just('[').padded())
+        .then_ignore(left_bracket())
         .then(unsigned_integer())
-        .then_ignore(just(']'))
+        .then_ignore(right_bracket())
         .map(|(r#type, size)| TypeIdentifier::StaticArray {
             r#type: Box::new(r#type),
             size,
         })
-        .labelled("static_array_type")
+        .labelled("static array type")
         .padded()
 }
 
 pub(crate) fn dynamic_array_type<'src>()
 -> impl Parser<'src, &'src str, TypeIdentifier, ErrorType<'src>> {
     choice((builtin_type(), user_defined_type()))
-        .then_ignore(just("[]"))
+        .then_ignore(left_bracket())
+        .then_ignore(right_bracket())
         .map(|r#type| TypeIdentifier::DynamicArray {
             r#type: Box::new(r#type),
         })
-        .labelled("dynamic_array_type")
+        .labelled("dynamic array type")
         .padded()
 }
 
@@ -187,18 +249,18 @@ pub(crate) fn type_identifier<'src>()
 pub(crate) fn enumeration_field_single_value<'src>()
 -> impl Parser<'src, &'src str, EnumerationField, ErrorType<'src>> {
     identifier()
-        .then_ignore(just('=').padded())
+        .then_ignore(equal())
         .then(unsigned_integer())
-        .then_ignore(just(';').padded())
+        .then_ignore(semicolon())
         .map(|(name, value)| EnumerationField::SingleValue { name, value })
-        .labelled("enumeration_field_single_value")
+        .labelled("enumeration field single value")
         .padded()
 }
 
 /// Parses a range of values defined by `start..end`.
 pub(crate) fn range<'src>() -> impl Parser<'src, &'src str, (u64, u64), ErrorType<'src>> {
     unsigned_integer()
-        .then_ignore(just("..").padded())
+        .then_ignore(double_dot())
         .then(unsigned_integer())
         .map(|(start, end)| (start, end))
         .labelled("range")
@@ -209,11 +271,11 @@ pub(crate) fn range<'src>() -> impl Parser<'src, &'src str, (u64, u64), ErrorTyp
 pub(crate) fn enumeration_field_range_of_values<'src>()
 -> impl Parser<'src, &'src str, EnumerationField, ErrorType<'src>> {
     identifier()
-        .then_ignore(just('=').padded())
+        .then_ignore(equal())
         .then(range())
-        .then_ignore(just(';').padded())
+        .then_ignore(semicolon())
         .map(|(name, (start, end))| EnumerationField::RangeOfValues { name, start, end })
-        .labelled("enumeration_field_range_of_values")
+        .labelled("enumeration field range of values")
         .padded()
 }
 
@@ -224,7 +286,7 @@ pub(crate) fn enumeration_field<'src>()
         enumeration_field_single_value(),
         enumeration_field_range_of_values(),
     ))
-    .labelled("enumeration_field")
+    .labelled("enumeration field")
     .padded()
 }
 
@@ -234,14 +296,15 @@ pub(crate) fn enumeration_definition<'src>()
     just("enum")
         .padded()
         .ignore_then(identifier())
-        .then_ignore(just("{").padded())
+        .then_ignore(left_brace())
         .then(
             enumeration_field()
                 .repeated()
                 .at_least(1)
                 .collect::<Vec<EnumerationField>>(),
         )
-        .then_ignore(just("};").padded())
+        .then_ignore(right_brace())
+        .then_ignore(semicolon())
         .map(|(name, fields)| EnumerationDefinition { name, fields })
         .labelled("enumeration")
         .padded()
@@ -251,15 +314,15 @@ pub(crate) fn enumeration_definition<'src>()
 pub(crate) fn attribute<'src>() -> impl Parser<'src, &'src str, Attribute, ErrorType<'src>> {
     choice((
         just("discriminated_by")
-            .ignore_then(just('=').padded())
+            .ignore_then(equal())
             .ignore_then(identifier())
             .map(|field| Attribute::DiscriminatedBy { field }),
         just("bits")
-            .ignore_then(just('=').padded())
+            .ignore_then(equal())
             .ignore_then(unsigned_integer())
             .map(|size| Attribute::BitsSize { size }),
         just("bytes")
-            .ignore_then(just('=').padded())
+            .ignore_then(equal())
             .ignore_then(unsigned_integer())
             .map(|size| Attribute::BytesSize { size }),
     ))
@@ -269,17 +332,17 @@ pub(crate) fn attribute<'src>() -> impl Parser<'src, &'src str, Attribute, Error
 
 /// Parses a structure field attribute tail, which is a comma followed by another attribute.
 pub(crate) fn attribute_tail<'src>() -> impl Parser<'src, &'src str, Attribute, ErrorType<'src>> {
-    just(',')
+    comma()
         .padded()
         .ignore_then(attribute())
-        .labelled("attribute_tail")
+        .labelled("attribute tail")
         .padded()
 }
 
 /// Parses a collection of structure field attributes, which are enclosed in square brackets
 /// and separated by commas.
 pub(crate) fn attributes<'src>() -> impl Parser<'src, &'src str, Vec<Attribute>, ErrorType<'src>> {
-    just('[')
+    left_bracket()
         .padded()
         .ignore_then(
             attribute()
@@ -290,7 +353,7 @@ pub(crate) fn attributes<'src>() -> impl Parser<'src, &'src str, Vec<Attribute>,
                     attrs
                 }),
         )
-        .then_ignore(just(']').padded())
+        .then_ignore(right_bracket())
         .labelled("attributes")
         .padded()
 }
@@ -302,15 +365,15 @@ pub(crate) fn structure_field<'src>()
         .or_not()
         .map(|attrs| attrs.unwrap_or_default())
         .then(identifier())
-        .then_ignore(just(':').padded())
+        .then_ignore(colon())
         .then(type_identifier())
-        .then_ignore(just(';').padded())
+        .then_ignore(semicolon())
         .map(|((attributes, name), r#type)| StructureField {
             attributes,
             name,
             r#type,
         })
-        .labelled("structure_field")
+        .labelled("structure field")
         .padded()
 }
 
@@ -320,16 +383,17 @@ pub(crate) fn structure_definition<'src>()
     just("struct")
         .padded()
         .ignore_then(identifier())
-        .then_ignore(just("{").padded())
+        .then_ignore(left_brace())
         .then(
             structure_field()
                 .repeated()
                 .at_least(1)
                 .collect::<Vec<StructureField>>(),
         )
-        .then_ignore(just("};").padded())
+        .then_ignore(right_brace())
+        .then_ignore(semicolon())
         .map(|(name, fields)| StructureDefinition { name, fields })
-        .labelled("structure_definition")
+        .labelled("structure definition")
         .padded()
 }
 
@@ -337,17 +401,17 @@ pub(crate) fn structure_definition<'src>()
 pub(crate) fn union_field_single_value<'src>()
 -> impl Parser<'src, &'src str, UnionField, ErrorType<'src>> {
     unsigned_integer()
-        .then_ignore(just("=>").padded())
+        .then_ignore(maps_to())
         .then(identifier())
-        .then_ignore(just(':').padded())
+        .then_ignore(colon())
         .then(type_identifier())
-        .then_ignore(just(';').padded())
+        .then_ignore(semicolon())
         .map(|((discriminator, name), r#type)| UnionField::SingleValue {
             name,
             r#type,
             discriminator,
         })
-        .labelled("union_field")
+        .labelled("union field")
         .padded()
 }
 
@@ -355,11 +419,11 @@ pub(crate) fn union_field_single_value<'src>()
 pub(crate) fn union_field_range_of_values<'src>()
 -> impl Parser<'src, &'src str, UnionField, ErrorType<'src>> {
     range()
-        .then_ignore(just("=>").padded())
+        .then_ignore(maps_to())
         .then(identifier())
-        .then_ignore(just(':').padded())
+        .then_ignore(colon())
         .then(type_identifier())
-        .then_ignore(just(';').padded())
+        .then_ignore(semicolon())
         .map(
             |(((start_discriminator, end_discriminator), name), r#type)| {
                 UnionField::RangeOfValues {
@@ -370,14 +434,14 @@ pub(crate) fn union_field_range_of_values<'src>()
                 }
             },
         )
-        .labelled("union_field_range_of_values")
+        .labelled("union field range of values")
         .padded()
 }
 
 /// Parses a union field, which can either be a single value or a range of values.
 pub(crate) fn union_field<'src>() -> impl Parser<'src, &'src str, UnionField, ErrorType<'src>> {
     choice((union_field_single_value(), union_field_range_of_values()))
-        .labelled("union_field")
+        .labelled("union field")
         .padded()
 }
 
@@ -387,14 +451,15 @@ pub(crate) fn union_definition<'src>()
     just("union")
         .padded()
         .ignore_then(identifier())
-        .then_ignore(just("{").padded())
+        .then_ignore(left_brace())
         .then(
             union_field()
                 .repeated()
                 .at_least(1)
                 .collect::<Vec<UnionField>>(),
         )
-        .then_ignore(just("};").padded())
+        .then_ignore(right_brace())
+        .then_ignore(semicolon())
         .map(|(name, fields)| UnionDefinition { name, fields })
         .labelled("union")
         .padded()
@@ -406,11 +471,11 @@ pub(crate) fn type_definition<'src>()
     just("using")
         .padded()
         .ignore_then(identifier())
-        .then_ignore(just('=').padded())
+        .then_ignore(equal())
         .then(type_identifier())
-        .then_ignore(just(';').padded())
+        .then_ignore(semicolon())
         .map(|(new_type, r#type)| TypeDefinition { new_type, r#type })
-        .labelled("type_definition")
+        .labelled("type definition")
         .padded()
 }
 
@@ -458,6 +523,126 @@ pub(crate) fn protocol<'src>() -> impl Parser<'src, &'src str, Protocol, ErrorTy
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_left_brace() {
+        let result = left_brace().parse("{");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_left_brace_with_whitespaces() {
+        let result = left_brace().parse("   {   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_right_brace() {
+        let result = right_brace().parse("}");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_right_brace_with_whitespaces() {
+        let result = right_brace().parse("   }   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_left_bracket() {
+        let result = left_bracket().parse("[");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_left_bracket_with_whitespaces() {
+        let result = left_bracket().parse("   [   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_right_bracket() {
+        let result = right_bracket().parse("]");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_right_bracket_with_whitespaces() {
+        let result = right_bracket().parse("   ]   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_semicolon() {
+        let result = semicolon().parse(";");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_semicolon_with_whitespaces() {
+        let result = semicolon().parse("   ;   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_colon() {
+        let result = colon().parse(":");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_colon_with_whitespaces() {
+        let result = colon().parse("   :   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_maps_to() {
+        let result = maps_to().parse("=>");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_maps_to_with_whitespaces() {
+        let result = maps_to().parse("   =>   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_equal() {
+        let result = equal().parse("=");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_equal_with_whitespaces() {
+        let result = equal().parse("   =   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_comma() {
+        let result = comma().parse(",");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_comma_with_whitespaces() {
+        let result = comma().parse("   ,   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_double_dot() {
+        let result = double_dot().parse("..");
+        assert!(!result.has_errors() && result.has_output());
+    }
+
+    #[test]
+    fn test_double_dot_with_whitespaces() {
+        let result = double_dot().parse("   ..   ");
+        assert!(!result.has_errors() && result.has_output());
+    }
 
     #[test]
     fn test_hexadecimal() {

@@ -97,10 +97,11 @@ using MyType = int32[10;
 
         let result = parse_protocol_to_ast(input);
         assert!(result.is_err());
+        println!("Error: {}", result.clone().unwrap_err());
         assert!(
             result
                 .unwrap_err()
-                .contains("Parsing failed. Errors: found ';' expected digit, or ']'")
+                .contains("Parsing failed. Errors: found ';' expected digit, or right bracket")
         );
     }
 

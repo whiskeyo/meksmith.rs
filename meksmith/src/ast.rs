@@ -105,7 +105,7 @@ pub enum UnionField {
 }
 
 /// Represents a union, which is a user-defined type that can hold one of several
-/// different types of values, each identified by a discriminator.
+/// values, each identified by a discriminator.
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionDefinition {
     pub name: Identifier,
@@ -120,8 +120,8 @@ pub struct TypeDefinition {
     pub r#type: TypeIdentifier,
 }
 
-/// Represents a single definition in the protocol, which can be an enumeration,
-/// structure, union, or type definition.
+/// Represents a single definition in the protocol, which can be an [`EnumerationDefinition`],
+/// [`StructureDefinition`], [`UnionDefinition`], or [`TypeDefinition`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
     Enumeration(EnumerationDefinition),
