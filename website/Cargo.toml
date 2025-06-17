@@ -1,0 +1,9 @@
+[package]
+name = "meksmith-website"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+leptos = { version = "0.8.2", features = ["csr"] }
+leptos_router = "0.8.2"
+console_error_panic_hook = "0.1.7"
