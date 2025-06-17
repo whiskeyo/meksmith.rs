@@ -27,7 +27,7 @@ fn NavigationBar() -> impl IntoView {
         <nav>
             <div class="nav-flex">
                 <ul class="nav-left">
-                    <li><img data-trunk src="assets/images/logo.png" alt="Meksmith Logo" class="logo"/></li>
+                    <li><img data-trunk src="assets/images/logo.png" alt="meksmith Logo" class="logo"/></li>
                     <li><A href="/">"meksmith.rs" { " v".to_string() + env!("CARGO_PKG_VERSION") } </A></li>
                 </ul>
                 <ul class="nav-right">
@@ -45,10 +45,8 @@ fn NavigationBar() -> impl IntoView {
 fn Home() -> impl IntoView {
     view! {
         <div class="home">
-            <h1>"Welcome to Meksmith.rs"</h1>
-            <p>"A Rust-based protocol definition language and code generator."</p>
-            <p>"Explore the documentation to learn how to define protocols and generate code."</p>
-            <p>"Check out the examples to see Meksmith in action."</p>
+            <h1>"Welcome to meksmith.rs"</h1>
+            <p>"Placeholder for the home page content."</p>
         </div>
     }
 }
@@ -57,10 +55,8 @@ fn Home() -> impl IntoView {
 fn About() -> impl IntoView {
     view! {
         <div class="about">
-            <h1>"About Meksmith.rs"</h1>
-            <p>"Meksmith.rs is a protocol definition language designed to simplify the process of defining protocols and generating code in various programming languages."</p>
-            <p>"It provides a simple and intuitive syntax for defining protocols, along with powerful code generation capabilities."</p>
-            <p>"Meksmith.rs is built with Rust, leveraging its performance and safety features to provide a robust and efficient protocol definition and code generation experience."</p>
+            <h1>"About meksmith.rs"</h1>
+            <p>"Placeholder for the about page content."</p>
         </div>
     }
 }
