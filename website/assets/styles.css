@@ -1,9 +1,12 @@
 :root {
     --primary-color: #191818;
-    --secondary-color: #40b805;
+    --primary-color-light: #232222;
+
     --text-color: #dbdbdb;
 
-    --primary-color-light: #232222;
+    --green-color: #40b805;
+    --green-color-light: #51f002;
+    --green-color-dark: #1a4f00;
 }
 
 body {
@@ -63,10 +66,104 @@ nav ul li a {
 }
 
 nav ul li a:hover {
-    color: var(--secondary-color);
+    color: var(--green-color);
 }
 
 img.logo {
     height: 16px;
     width: auto;
+}
+
+.hero {
+    padding: 0em;
+    text-align: center;
+}
+
+.center {
+    padding: 0em;
+    text-align: center;
+}
+
+.green-on-hover {
+    color: var(--text-color);
+    transition: color 0.2s;
+}
+
+.green-on-hover:hover {
+    color: var(--green-color);
+    transition: color 0.2s;
+}
+
+.no-decoration {
+    text-decoration: none;
+}
+
+.hyperlink {
+    color: var(--green-color);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.hyperlink:hover {
+    color: var(--green-color-light);
+}
+
+.w-800 {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.w-1600 {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.code-editor {
+    background-color: var(--primary-color-light);
+    color: var(--text-color);
+    padding: 1em;
+    border-radius: 8px;
+    resize: none;
+    overflow: auto;
+    white-space: pre;
+}
+
+.flex-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+}
+
+.flex-column { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-1 { flex: 1 1 0%; }
+.flex-2 { flex: 2 1 0%; }
+.flex-3 { flex: 3 1 0%; }
+
+.justify-start   { justify-content: flex-start; }
+.justify-center  { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end     { justify-content: flex-end; }
+
+.items-start   { align-items: flex-start; }
+.items-center  { align-items: center; }
+.items-end     { align-items: flex-end; }
+
+.no-break {
+    white-space: nowrap;
+}
+
+.animated-green-gradient-text {
+    background: linear-gradient(270deg, var(--green-color), var(--green-color-light), var(--green-color-dark));
+    background-size: 600% 600%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: moveGradient 3s ease infinite;
+}
+
+@keyframes moveGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
