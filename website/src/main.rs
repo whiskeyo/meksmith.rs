@@ -14,7 +14,7 @@ fn App() -> impl IntoView {
             <main>
                 <Routes fallback=NotFound>
                     <Route path=leptos_router::path!("/") view=Home/>
-                    <Route path=leptos_router::path!("/tool") view=Tool/>
+                    <Route path=leptos_router::path!("/code-generator") view=CodeGenerator/>
                     <Route path=leptos_router::path!("/docs") view=Documentation/>
                     <Route path=leptos_router::path!("/about") view=About/>
                 </Routes>
@@ -30,10 +30,10 @@ fn NavigationBar() -> impl IntoView {
             <div class="nav-flex">
                 <ul class="nav-left">
                     <li><img data-trunk src="assets/images/logo.png" alt="meksmith Logo" class="logo"/></li>
-                    <li><a class="hyperlink" href="/"><TextWithAnimatedGradient text="meksmith.rs".to_string() /> { " v".to_string() + env!("CARGO_PKG_VERSION") } </a></li>
+                    <li><a class="hyperlink" href="/"><TextWithAnimatedGradient text="meksmith.rs" /> { " v".to_string() + env!("CARGO_PKG_VERSION") } </a></li>
                 </ul>
                 <ul class="nav-right">
-                    <li><a class="hyperlink" href="/tool">"tool"</a></li>
+                    <li><a class="hyperlink" href="/code-generator">"code generator"</a></li>
                     | <li><a class="hyperlink" href="/docs">"docs"</a></li>
                     | <li><a class="hyperlink" href="/about">"about"</a></li>
                     | <li><a class="hyperlink" href="https://github.com/whiskeyo/meksmith.rs" rel="external">"repo"</a></li>
@@ -64,35 +64,29 @@ struct MyStruct {
     view! {
         <div class="hero">
             <h1>
-                "Define your protocols with " <TextWithAnimatedGradient text="meksmith.rs".to_string() />
+                "Define your protocols with " <TextWithAnimatedGradient text="meksmith.rs" />
             </h1>
             <section class="w-800">
                 <p>
                     "If you came here for the first time, you probably think: what is "
-                    <TextWithAnimatedGradient text="meksmith.rs".to_string() />
+                    <TextWithAnimatedGradient text="meksmith.rs" />
                     "?"
                 </p>
                 <p>
-                    <TextWithAnimatedGradient text="meksmith.rs".to_string() />
+                    <TextWithAnimatedGradient text="meksmith.rs" />
                     " is a combination of a "
-                    <TextWithAnimatedGradient text="meklang".to_string() />
+                    <TextWithAnimatedGradient text="meklang" />
                     ", which is a DSL with syntax similar to C, but it contains a few extensions, which allow you"
                     " to define binary protocols (such as "
-                    <a
+                    <ExternalHyperlink
                         href="https://www.cpri.info/downloads/eCPRI_v_2.0_2019_05_10c.pdf"
-                        rel="external"
-                        class="hyperlink"
-                    >
-                        "eCPRI"
-                    </a>
+                        children=view! { <span class="no-break">"eCPRI"</span> }
+                    />
                     ", "
-                    <a
+                    <ExternalHyperlink
                         href="https://docs.o-ran-sc.org/projects/o-ran-sc-o-du-phy/en/latest/Transport-Layer-and-ORAN-Fronthaul-Protocol-Implementation_fh.html"
-                        rel="external"
-                        class="hyperlink"
-                    >
-                        <span class="no-break">"ORAN FH"</span>
-                    </a>
+                        children=view! { <span class="no-break">"ORAN FH"</span> }
+                    />
                     " and many others), and a code generator"
                     " that produces ready-to-use code in C language. Don't worry, more languages will be supported"
                     " in the future."
@@ -101,14 +95,29 @@ struct MyStruct {
             <CodeEditorWithOutput
                 width=40
                 height=16
-                extra_section_classes="w-800".to_string()
+                extra_section_classes="w-800"
                 meklang_code=example_code
                 disable_input=true
             />
             <section class="w-800">
-                <h2>"Are you interested in using " <TextWithAnimatedGradient text="meksmith.rs".to_string() /> "?"</h2>
+                <h2>"Are you interested in using " <TextWithAnimatedGradient text="meksmith.rs" /> "?"</h2>
                 <p>
-                    "Then be sure to check out the documentation"
+                    "Check out the "
+                    <Hyperlink
+                        href="/docs"
+                        children=view! { "documentation" }
+                    />
+                    " and start creating your protocols using the "
+                    <Hyperlink
+                        href="/code-generator"
+                        children=view! { <TextWithAnimatedGradient text="meksmith.rs" /> " code generator" }
+                    />
+                    "! If you have any questions or suggestions, feel free to "
+                    <ExternalHyperlink
+                        href="https://github.com/whiskeyo/meksmith.rs/issues/new"
+                        children=view! { "open an issue" }
+                    />
+                    " on GitHub."
                 </p>
             </section>
         </div>
@@ -119,7 +128,7 @@ struct MyStruct {
 fn About() -> impl IntoView {
     view! {
         <div class="about">
-            <h1>"About " <TextWithAnimatedGradient text="meksmith.rs".to_string() /></h1>
+            <h1>"About " <TextWithAnimatedGradient text="meksmith.rs" /></h1>
             <p>"Placeholder for the about page content."</p>
         </div>
     }
@@ -136,14 +145,14 @@ fn Documentation() -> impl IntoView {
 }
 
 #[component]
-fn Tool() -> impl IntoView {
+fn CodeGenerator() -> impl IntoView {
     view! {
         <div class="center">
-            <h2><TextWithAnimatedGradient text="meksmith.rs".to_string() /> " generator tool"</h2>
+            <h2><TextWithAnimatedGradient text="meksmith.rs" /> " code generator"</h2>
             <CodeEditorWithOutput
                 width=100
                 height=45
-                extra_section_classes="w-1600".to_string()
+                extra_section_classes="w-1600"
                 meklang_code=String::new()
                 disable_input=false
             />
@@ -190,7 +199,7 @@ fn CodeEditor(
 fn CodeEditorWithOutput(
     width: u8,
     height: u8,
-    extra_section_classes: String,
+    extra_section_classes: &'static str,
     meklang_code: String,
     disable_input: bool,
 ) -> impl IntoView {
@@ -207,9 +216,9 @@ fn CodeEditorWithOutput(
     });
 
     view! {
-        <section class={extra_section_classes + " flex-container flex-row"}>
+        <section class={extra_section_classes.to_string() + " flex-container flex-row"}>
             <div class="flex-1">
-                <h3>"Input in " <TextWithAnimatedGradient text="meklang".to_string() /> </h3>
+                <h3>"Input in " <TextWithAnimatedGradient text="meklang" /> </h3>
                 <CodeEditor disabled=disable_input width height code set_code/>
             </div>
             <div class="flex-1">
@@ -221,22 +230,26 @@ fn CodeEditorWithOutput(
 }
 
 #[component]
-fn MeksmithRs() -> impl IntoView {
-    view! {
-        <span class="animated-green-gradient-text">"meksmith.rs"</span>
-    }
-}
-
-#[component]
-fn Meklang() -> impl IntoView {
-    view! {
-        <span class="animated-green-gradient-text">"meklang"</span>
-    }
-}
-
-#[component]
-fn TextWithAnimatedGradient(text: String) -> impl IntoView {
+fn TextWithAnimatedGradient(text: &'static str) -> impl IntoView {
     view! {
         <span class="animated-green-gradient-text">{ text }</span>
+    }
+}
+
+#[component]
+fn Hyperlink(href: &'static str, children: impl IntoView) -> impl IntoView {
+    view! {
+        <a class="hyperlink" href=href>
+            { children }
+        </a>
+    }
+}
+
+#[component]
+fn ExternalHyperlink(href: &'static str, children: impl IntoView) -> impl IntoView {
+    view! {
+        <a class="hyperlink" href=href rel="external">
+            { children }
+        </a>
     }
 }
