@@ -33,7 +33,7 @@ jobs:
         run: trunk build --release --public-url /
 
       - name: Copy .htaccess to dist
-        run: cp website/.htaccess website/dist/.htaccess
+        run: cp .htaccess dist/.htaccess
 
       - name: Upload via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
