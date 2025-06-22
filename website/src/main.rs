@@ -183,8 +183,8 @@ fn NotFound() -> impl IntoView {
             <br/>
             <h3>
                 "Go back to main page of "
-                <Hyperlink href="/" children=view! { 
-                    <TextWithAnimatedGradient text="meksmith.rs" /> 
+                <Hyperlink href="/" children=view! {
+                    <TextWithAnimatedGradient text="meksmith.rs" />
                 } />
             </h3>
         </div>
