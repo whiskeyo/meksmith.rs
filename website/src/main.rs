@@ -25,6 +25,9 @@ fn App() -> impl IntoView {
 
 #[component]
 fn NavigationBar() -> impl IntoView {
+    let location = leptos_router::hooks::use_location();
+    let path = move || location.pathname.get();
+
     view! {
         <nav>
             <div class="nav-flex">
@@ -33,12 +36,29 @@ fn NavigationBar() -> impl IntoView {
                     <li><a class="hyperlink" href="/"><TextWithAnimatedGradient text="meksmith.rs" /> { " v".to_string() + env!("CARGO_PKG_VERSION") } </a></li>
                 </ul>
                 <ul class="nav-right">
-                    <li><a class="hyperlink" href="/code-generator">"code generator"</a></li>
-                    | <li><a class="hyperlink" href="/docs">"docs"</a></li>
-                    | <li><a class="hyperlink" href="/about">"about"</a></li>
-                    | <li><a class="hyperlink" href="https://github.com/whiskeyo/meksmith.rs" rel="external">"repo"</a></li>
-                    | <li><a class="hyperlink" href="https://github.com/whiskeyo/meksmith.rs/issues" rel="external">"issues"</a></li>
-                    | <li><a class="hyperlink" href="https://github.com/whiskeyo/meksmith.rs/pulls" rel="external">"PRs"</a></li>
+                    <li class={move || if path().ends_with("/code-generator") { "active" } else { "" }}>
+                        <a class="hyperlink" href="/code-generator">"code generator"</a>
+                    </li>
+                    |
+                    <li class={move || if path().ends_with("/docs") { "active" } else { "" }}>
+                        <a class="hyperlink" href="/docs">"docs"</a>
+                    </li>
+                    |
+                    <li class={move || if path().ends_with("/about") { "active" } else { "" }}>
+                        <a class="hyperlink" href="/about">"about"</a>
+                    </li>
+                    |
+                    <li>
+                        <a class="hyperlink" href="https://github.com/whiskeyo/meksmith.rs" rel="external">"repo"</a>
+                    </li>
+                    |
+                    <li>
+                        <a class="hyperlink" href="https://github.com/whiskeyo/meksmith.rs/issues" rel="external">"issues"</a>
+                    </li>
+                    |
+                    <li>
+                        <a class="hyperlink" href="https://github.com/whiskeyo/meksmith.rs/pulls" rel="external">"PRs"</a>
+                    </li>
                 </ul>
             </div>
         </nav>
@@ -127,7 +147,7 @@ struct MyStruct {
 #[component]
 fn About() -> impl IntoView {
     view! {
-        <div class="about">
+        <div class="center">
             <h1>"About " <TextWithAnimatedGradient text="meksmith.rs" /></h1>
             <p>"Placeholder for the about page content."</p>
         </div>
@@ -136,10 +156,38 @@ fn About() -> impl IntoView {
 
 #[component]
 fn Documentation() -> impl IntoView {
+    let meklang_grammar = markdown::to_html(include_str!("md_docs/grammar.md"));
+
     view! {
-        <div>
-            <h1>"Documentation"</h1>
-            <p>"Placeholder for the documentation content."</p>
+        <div class="center">
+            <h2><TextWithAnimatedGradient text="meksmith.rs" /> " docs"</h2>
+        </div>
+        <div class="flex-container">
+            <div class="flex-1 documentation-box">
+                <h2 class="documentation-box-title">"meklang grammar in BNF-like notation"</h2>
+                <div class="documentation-box-content-scrollable" inner_html=meklang_grammar />
+            </div>
+            <div class="flex-1">
+                <div class="documentation-grid">
+                    <div class="documentation-box">
+                        <h2 class="documentation-box-title">"meklang code example 1"</h2>
+                        <p>"Description for example 1."</p>
+                    </div>
+                    <div class="documentation-box">
+                        <h2 class="documentation-box-title">"meklang code example 2"</h2>
+                        <p>"Description for example 2."</p>
+                    </div>
+                    <div class="documentation-box">
+                        <h2 class="documentation-box-title">"meklang code example 3"</h2>
+                        <p>"Description for example 3."</p>
+                    </div>
+                    <div class="documentation-box">
+                        <h2 class="documentation-box-title">"meklang code example 4"</h2>
+                        <p>"Description for example 4."</p>
+                    </div>
+                    // Add more boxes as needed for N rows (each row has 2 boxes)
+                </div>
+            </div>
         </div>
     }
 }

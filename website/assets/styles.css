@@ -65,6 +65,11 @@ nav ul li a {
     transition: color 0.2s;
 }
 
+nav ul li.active a {
+    color: var(--green-color-light);
+    text-decoration: underline;
+}
+
 nav ul li a:hover {
     color: var(--green-color);
 }
@@ -166,4 +171,50 @@ img.logo {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+}
+
+.documentation-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 2fr));
+    gap: 1em;
+}
+
+.documentation-box-title {
+    font-size: 1.2em;
+    color: var(--text-color);
+    margin-top: 0.25em;
+    margin-bottom: 0.5em;
+}
+
+.documentation-box {
+    background-color: var(--primary-color-light);
+    color: var(--text-color);
+    padding: 1em;
+    border-radius: 16px;
+    margin-bottom: 0em;
+}
+
+.documentation-box-content-scrollable {
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 1em;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--green-color) var(--primary-color-light);
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    background: var(--primary-color-light);
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--green-color);
+    border-radius: 8px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--green-color-light);
 }
