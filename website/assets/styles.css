@@ -4,9 +4,11 @@
 
     --text-color: #dbdbdb;
 
-    --green-color: #40b805;
     --green-color-light: #51f002;
-    --green-color-dark: #1a4f00;
+    --green-color-lightest: #93fe55;
+    --green-color: #40b805;
+    --green-color-dark: #2f8d00;
+    --green-color-darkest: #236900;
 }
 
 body {
@@ -190,8 +192,15 @@ img.logo {
     background-color: var(--primary-color-light);
     color: var(--text-color);
     padding: 1em;
-    border-radius: 16px;
+    border-radius: 32px;
     margin-bottom: 0em;
+    transition: box-shadow 0.2s ease-in-out;
+    box-shadow: 0 0 var(--green-color-darkest);
+}
+
+.documentation-box:hover {
+    box-shadow: 0 0 20px var(--green-color-darkest);
+    transition: box-shadow 0.2s ease-in-out;
 }
 
 .documentation-box-content-scrollable {
@@ -218,3 +227,7 @@ img.logo {
 *::-webkit-scrollbar-thumb:hover {
     background: var(--green-color-light);
 }
+
+.bnf-operator { color: var(--green-color); }
+.bnf-nonterminal { color: var(--green-color-light); font-style: italic; }
+.bnf-keyword { color: var(--green-color-lightest);  }
