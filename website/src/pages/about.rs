@@ -6,7 +6,7 @@ use crate::components::text::TextWithAnimatedGradient;
 pub fn About() -> impl IntoView {
     view! {
         <div class="center">
-            <h1>"About " <TextWithAnimatedGradient text="meksmith.rs" /></h1>
+            <h2>"about " <TextWithAnimatedGradient text="meksmith.rs" /></h2>
             <p>"Placeholder for the about page content."</p>
         </div>
     }

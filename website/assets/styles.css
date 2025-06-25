@@ -139,6 +139,7 @@ img.logo {
     display: flex;
     flex-wrap: wrap;
     gap: 1em;
+    margin-bottom: 2em;
 }
 
 .flex-column { flex-direction: column; }
@@ -201,12 +202,6 @@ img.logo {
 .documentation-box:hover {
     box-shadow: 0 0 20px var(--green-color-darkest);
     transition: box-shadow 0.2s ease-in-out;
-}
-
-.documentation-box-content-scrollable {
-    max-height: 500px;
-    overflow-y: auto;
-    padding-right: 1em;
 }
 
 * {

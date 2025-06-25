@@ -63,8 +63,8 @@ struct MyStruct {
                 <p>
                     "Check out the "
                     <InternalHyperlink
-                        href="/docs"
-                        children=view! { "documentation" }
+                        href="/cheatsheet"
+                        children=view! { "cheatsheet" }
                     />
                     " and start creating your protocols using the "
                     <InternalHyperlink

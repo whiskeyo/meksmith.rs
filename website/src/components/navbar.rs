@@ -19,8 +19,8 @@ pub fn NavigationBar() -> impl IntoView {
                         <a class="hyperlink" href="/code-generator">"code generator"</a>
                     </li>
                     |
-                    <li class={move || if path().ends_with("/docs") { "active" } else { "" }}>
-                        <a class="hyperlink" href="/docs">"docs"</a>
+                    <li class={move || if path().ends_with("/cheatsheet") { "active" } else { "" }}>
+                        <a class="hyperlink" href="/cheatsheet">"cheatsheet"</a>
                     </li>
                     |
                     <li class={move || if path().ends_with("/about") { "active" } else { "" }}>
