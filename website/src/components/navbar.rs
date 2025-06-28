@@ -11,7 +11,7 @@ pub fn NavigationBar() -> impl IntoView {
         <nav>
             <div class="nav-flex">
                 <ul class="nav-left">
-                    <li><img data-trunk src="assets/images/logo.png" alt="meksmith Logo" class="logo"/></li>
+                    <li><img data-trunk src="assets/images/logo.svg" alt="meksmith Logo" class="logo"/></li>
                     <li><a class="hyperlink" href="/"><TextWithAnimatedGradient text="meksmith.rs" /> { " v".to_string() + env!("CARGO_PKG_VERSION") } </a></li>
                 </ul>
                 <ul class="nav-right">
