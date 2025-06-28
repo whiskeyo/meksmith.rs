@@ -77,8 +77,9 @@ nav ul li a:hover {
 }
 
 img.logo {
-    height: 16px;
+    height: 20px;
     width: auto;
+    vertical-align: middle;
 }
 
 .hero {
