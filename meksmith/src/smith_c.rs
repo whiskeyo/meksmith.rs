@@ -118,13 +118,26 @@ fn generate_union_code(union: &UnionDefinition) -> String {
     code.push_str("typedef union {\n");
     for field in &union.fields {
         match field {
-            UnionField::SingleValue { name, r#type, .. } => {
-                code.push_str(&format!(
-                    "    {} {};\n",
-                    generate_type_identifier_code(r#type),
-                    name.name
-                ));
-            }
+            UnionField::SingleValue { name, r#type, .. } => match r#type {
+                TypeIdentifier::StaticArray {
+                    r#type: inner_type,
+                    size,
+                } => {
+                    code.push_str(&format!(
+                        "    {} {}[{}];\n",
+                        generate_type_identifier_code(inner_type),
+                        name.name,
+                        size
+                    ));
+                }
+                _ => {
+                    code.push_str(&format!(
+                        "    {} {};\n",
+                        generate_type_identifier_code(r#type),
+                        name.name
+                    ));
+                }
+            },
             UnionField::RangeOfValues {
                 name,
                 r#type,
@@ -132,12 +145,28 @@ fn generate_union_code(union: &UnionDefinition) -> String {
                 end_discriminator,
             } => {
                 for i in *start_discriminator..=*end_discriminator {
-                    code.push_str(&format!(
-                        "    {} {}_{};\n",
-                        generate_type_identifier_code(r#type),
-                        name.name,
-                        i
-                    ));
+                    match r#type {
+                        TypeIdentifier::StaticArray {
+                            r#type: inner_type,
+                            size,
+                        } => {
+                            code.push_str(&format!(
+                                "    {} {}_{}[{}];\n",
+                                generate_type_identifier_code(inner_type),
+                                name.name,
+                                i,
+                                size
+                            ));
+                        }
+                        _ => {
+                            code.push_str(&format!(
+                                "    {} {}_{};\n",
+                                generate_type_identifier_code(r#type),
+                                name.name,
+                                i
+                            ));
+                        }
+                    }
                 }
             }
         }
@@ -218,7 +247,7 @@ struct MyStruct {
 union MyUnion {
     0 => field1: bit;
     1 => field2: MyEnum;
-    2 => field3: uint64;
+    2 => field3: uint64[10];
     3 => field4: MyStruct;
     4..6 => reserved: uint16;
 };
@@ -256,7 +285,7 @@ typedef struct {
 typedef union {
     bool field1;
     MyEnum field2;
-    uint64_t field3;
+    uint64_t field3[10];
     MyStruct field4;
     uint16_t reserved_4;
     uint16_t reserved_5;
