@@ -37,7 +37,7 @@ fn main() {
         match std::fs::read_to_string(&path) {
             Ok(contents) => contents,
             Err(_) => {
-                eprintln!("Failed to read file '{}', using example input.", path);
+                eprintln!("Failed to read file '{path}', using example input.");
                 EXAMPLE_INPUT.to_string()
             }
         }
@@ -46,7 +46,7 @@ fn main() {
     };
 
     match meksmith::smith_c::generate_c_code_from_string(&input) {
-        Ok(code) => println!("{}", code),
-        Err(e) => eprintln!("Error generating C code: {}", e),
+        Ok(code) => println!("{code}"),
+        Err(e) => eprintln!("Error generating C code: {e}"),
     }
 }

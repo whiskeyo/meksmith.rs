@@ -40,7 +40,7 @@ pub fn CodeEditorWithOutput(
         set_parsed_code.set(
             match meksmith::smith_c::generate_c_code_from_string(code.get().as_str()) {
                 Ok(c_code) => c_code,
-                Err(e) => format!("Error: {}", e),
+                Err(e) => format!("Error: {e}"),
             },
         );
     });
