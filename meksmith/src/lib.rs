@@ -57,7 +57,7 @@ pub fn parse_protocol_to_ast(input: &str) -> Result<Protocol, String> {
 /// but reads the input from a file instead of a string.
 pub fn parse_protocol_from_file_to_ast(file_path: &str) -> Result<Protocol, String> {
     let input =
-        std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+        std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {e}"))?;
     parse_protocol_to_ast(&input)
 }
 

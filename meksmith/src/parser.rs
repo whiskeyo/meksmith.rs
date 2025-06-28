@@ -1171,7 +1171,6 @@ mod tests {
         let input = "[discriminated_by = discriminatorField, bits = 10]";
         let result = attributes().parse(input);
 
-        println!("{:?}", result);
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),
@@ -1679,9 +1678,6 @@ union MyUnion {
 "#;
 
         let result = protocol().parse(input);
-        for error in result.errors() {
-            eprintln!("Error: {}", error);
-        }
         assert!(!result.has_errors() && result.has_output());
         assert_eq!(
             result.into_output().unwrap(),

@@ -185,7 +185,7 @@ pub fn generate_from_file_to_file(
 ) -> Result<(), String> {
     let c_code = generate_from_file(input_file_path)?;
     std::fs::write(output_file_path, c_code)
-        .map_err(|e| format!("Failed to write to file: {}", e))?;
+        .map_err(|e| format!("Failed to write to file: {e}"))?;
     Ok(())
 }
 
