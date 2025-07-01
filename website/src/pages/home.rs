@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::components::code_editor::CodeEditorWithOutput;
+use crate::components::code_editor::{CodeEditorOptions, CodeEditorWithOutput};
 use crate::components::hyperlink::{ExternalHyperlink, InternalHyperlink};
 use crate::components::text::TextWithAnimatedGradient;
 
@@ -52,8 +52,10 @@ struct MyStruct {
                 </p>
             </section>
             <CodeEditorWithOutput
-                width=40
-                height=16
+                code_editor_options=CodeEditorOptions {
+                    width_in_pixels: 350,
+                    height_in_pixels: 385,
+                }
                 extra_section_classes="w-800"
                 meklang_code=example_code
                 disable_input=true
