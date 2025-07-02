@@ -124,7 +124,7 @@ pub fn Cheatsheet() -> impl IntoView {
                 <div class="documentation-grid">
                     <CheatsheetBoxWithCode
                         title="built-in types"
-                        description="There are a few supported built-in types, which are appropriately mapped by smiths."
+                        description="There are a few supported built-in types, which are appropriately mapped to built-in types of various languages by smiths."
                         code_example=MEKLANG_BUILTIN_TYPES
                     />
                     <CheatsheetBox

@@ -23,19 +23,7 @@ pub fn CodeEditor(
     #[prop(into)] code: ReadSignal<String>,
     #[prop(into)] set_code: WriteSignal<String>,
 ) -> impl IntoView {
-    let line_numbers = move || {
-        let code_str = code.get();
-        let num_lines = if code_str.is_empty() {
-            1
-        } else {
-            code_str.lines().count().max(1)
-        };
-        (1..=num_lines)
-            .map(|n| n.to_string())
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
-
+    let line_numbers = move || get_line_numbers(&code.get());
     let code_editor_ref = NodeRef::<leptos::html::Div>::new();
 
     Effect::new(move |_| {
@@ -58,7 +46,7 @@ pub fn CodeEditor(
         <div class="code-editor-container" style=code_editor_options.style()>
             <div class="code-editor-scrollable">
                 <div class="code-editor-line-numbers">
-                    { move || line_numbers }
+                    { line_numbers }
                 </div>
                 <div
                     node_ref=code_editor_ref
@@ -82,14 +70,16 @@ pub fn CodeEditorWithOutput(
 ) -> impl IntoView {
     let (code, set_code) = signal(meklang_code);
     let (parsed_code, set_parsed_code) = signal(String::new());
+    let (parsing_error, set_parsing_error) = signal(String::new());
 
     Effect::new(move |_| {
-        set_parsed_code.set(
-            match meksmith::smith_c::generate_c_code_from_string(code.get().as_str()) {
-                Ok(c_code) => c_code,
-                Err(e) => format!("Error: {e}"),
-            },
-        );
+        match meksmith::smith_c::generate_c_code_from_string(code.get().as_str()) {
+            Ok(c_code) => {
+                set_parsed_code.set(c_code);
+                set_parsing_error.set(String::new());
+            }
+            Err(e) => set_parsing_error.set(e),
+        }
     });
 
     view! {
@@ -97,11 +87,54 @@ pub fn CodeEditorWithOutput(
             <div class="flex-1">
                 <h3>"Input in " <TextWithAnimatedGradient text="meklang" /> </h3>
                 <CodeEditor disabled=disable_input code_editor_options code=code set_code=set_code />
+                <Show
+                    when=move || !parsing_error.get().is_empty()
+                >
+                    <div class="code-editor-error-box">
+                        {move || parsing_error.get()}
+                    </div>
+                </Show>
             </div>
             <div class="flex-1">
                 <h3>"Generated output in C"</h3>
                 <CodeEditor disabled=true code_editor_options code=parsed_code set_code=set_parsed_code />
             </div>
         </section>
+    }
+}
+
+/// Returns all line numbers separated by a newline in the given code string.
+/// The number of lines is determined by counting the number of newline characters
+/// in the code, supporting also multiple empty lines. Numbering starts from 1
+/// and each line (including empty lines) is numbered sequentially.
+fn get_line_numbers(code: &str) -> String {
+    let number_of_lines = if code.is_empty() {
+        1
+    } else {
+        code.lines().count()
+    };
+
+    (1..=number_of_lines)
+        .map(|n| n.to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_line_numbers() {
+        assert_eq!(get_line_numbers(""), "1");
+        assert_eq!(get_line_numbers("line1\nline2"), "1\n2");
+        assert_eq!(get_line_numbers("line1\nline2\nline3"), "1\n2\n3");
+        assert_eq!(get_line_numbers("line1\nline2\nline3\n"), "1\n2\n3");
+        assert_eq!(get_line_numbers("line1\nline2\nline3\nline4"), "1\n2\n3\n4");
+    }
+
+    #[test]
+    fn test_get_line_numbers_with_multiple_empty_lines() {
+        assert_eq!(get_line_numbers("\n\n\n\n\n"), "1\n2\n3\n4\n5");
     }
 }

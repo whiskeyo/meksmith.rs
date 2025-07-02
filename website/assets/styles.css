@@ -127,7 +127,6 @@ img.logo {
 }
 
 .code-editor-container {
-    /* width: 40vw; */
     max-width: 900px;
     margin-top: 40px;
     background: #21252b;
@@ -176,6 +175,20 @@ img.logo {
     overflow: visible;
     display: block;
     min-height: 100%;
+}
+
+.code-editor-error-box {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #2f1a1a;
+    color: #ff6b6b;
+    padding: 8px 16px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    font-size: 15px;
+    z-index: 10;
 }
 
 .flex-container {
