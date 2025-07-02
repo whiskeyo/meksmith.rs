@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::components::code_editor::CodeEditor;
+use crate::components::code_editor::{CodeEditor, CodeEditorOptions};
 use crate::components::text::TextWithAnimatedGradient;
 
 const MEKLANG_BNF_GRAMMAR: &str = r#"<protocol> ::= (<definition> | <comment>)+
@@ -124,7 +124,7 @@ pub fn Cheatsheet() -> impl IntoView {
                 <div class="documentation-grid">
                     <CheatsheetBoxWithCode
                         title="built-in types"
-                        description="There are a few supported built-in types, which are appropriately mapped by smiths."
+                        description="There are a few supported built-in types, which are appropriately mapped to built-in types of various languages by smiths."
                         code_example=MEKLANG_BUILTIN_TYPES
                     />
                     <CheatsheetBox
@@ -173,7 +173,7 @@ fn CheatsheetBoxWithCode(
     description: &'static str,
     code_example: &'static str,
 ) -> impl IntoView {
-    let height = code_example.lines().count() as u8;
+    let height = code_example.lines().count() as u16 * 24;
     let (code, set_code) = signal(code_example.to_string());
 
     view! {
@@ -182,8 +182,10 @@ fn CheatsheetBoxWithCode(
             <p>{description}</p>
             <div class="center">
                 <CodeEditor
-                    width=40
-                    height
+                    code_editor_options=CodeEditorOptions {
+                        width_in_pixels: 343,
+                        height_in_pixels: height,
+                    }
                     code
                     set_code
                     disabled=true
