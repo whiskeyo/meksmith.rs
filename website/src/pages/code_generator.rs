@@ -10,11 +10,12 @@ pub fn CodeGenerator() -> impl IntoView {
             <h2><TextWithAnimatedGradient text="meksmith.rs" /> " code generator"</h2>
             <CodeEditorWithOutput
                 code_editor_options=CodeEditorOptions {
-                    width_in_pixels: 750,
-                    height_in_pixels: 600,
+                    width: 750,
+                    height: 600,
                 }
                 extra_section_classes="w-1600"
-                meklang_code=String::new()
+                // meklang_code=String::new()
+                meklang_code=String::from(include_str!("../../../meksmith/examples/ecpri.mek"))
                 disable_input=false
             />
         </div>

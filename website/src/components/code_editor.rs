@@ -1,19 +1,42 @@
 use crate::components::text::TextWithAnimatedGradient;
 use leptos::prelude::*;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct CodeEditorOptions {
-    pub(crate) width_in_pixels: u16,
-    pub(crate) height_in_pixels: u16,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 impl CodeEditorOptions {
-    pub fn style(&self) -> String {
-        format!(
-            "width: {}px; min-height: {}px; max-height: {}px;",
-            self.width_in_pixels, self.height_in_pixels, self.height_in_pixels
-        )
+    pub(crate) fn get_formatted_size(&self) -> String {
+        format!("width: {}px; height: {}px;", self.width, self.height)
     }
+}
+
+const MEKLANG_KEYWORDS: [&str; 4] = ["enum ", "struct ", "union ", "using "];
+
+fn escape_html(input: &str) -> String {
+    input
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+}
+
+fn highlight_meklang_code(code: &str) -> String {
+    let mut highlighted_code = escape_html(code);
+
+    MEKLANG_KEYWORDS.iter().for_each(|keyword| {
+        highlighted_code = highlighted_code.replace(
+            keyword,
+            &format!("<span class=\"code-editor-highlight-keyword\">{keyword}</span>"),
+        );
+    });
+
+    if highlighted_code.ends_with('\n') {
+        highlighted_code.push(' ');
+    }
+
+    highlighted_code
 }
 
 #[component]
@@ -24,39 +47,120 @@ pub fn CodeEditor(
     #[prop(into)] set_code: WriteSignal<String>,
 ) -> impl IntoView {
     let line_numbers = move || get_line_numbers(&code.get());
-    let code_editor_ref = NodeRef::<leptos::html::Div>::new();
+    // let (parsed_code, set_parsed_code) = signal(highlight_meklang_code(&code.get()));
+    let parsed_code = move || highlight_meklang_code(&code.get());
 
-    Effect::new(move |_| {
-        if let Some(div) = code_editor_ref.get() {
-            let content = div.inner_text();
-            let code_val = code.get();
-            if content != code_val {
-                div.set_inner_text(&code_val);
+    let textarea_code_ref: NodeRef<leptos::html::Textarea> = NodeRef::new();
+    textarea_code_ref.on_load(move |textarea| {
+        textarea.set_cols(code_editor_options.width);
+        textarea.set_rows(code_editor_options.height);
+        textarea.set_value(&code.get());
+
+        if disabled {
+            textarea.set_attribute("disabled", "true").unwrap();
+        }
+    });
+
+    let pre_parsed_code_ref: NodeRef<leptos::html::Pre> = NodeRef::new();
+    pre_parsed_code_ref.on_load(move |pre| {
+        pre.set_scroll_top(textarea_code_ref.get().unwrap().scroll_top());
+    });
+
+    let pre_line_numbers_ref: NodeRef<leptos::html::Pre> = NodeRef::new();
+    pre_line_numbers_ref.on_load(move |pre| {
+        pre.set_scroll_top(textarea_code_ref.get().unwrap().scroll_top());
+    });
+
+    let sync = move |_| {
+        let code_value = textarea_code_ref.get().unwrap().value();
+        set_code.set(code_value.clone());
+        // set_parsed_code.set(highlight_meklang_code(&code_value));
+        pre_parsed_code_ref
+            .get()
+            .unwrap()
+            .set_inner_html(&highlight_meklang_code(
+                &textarea_code_ref.get().unwrap().value(),
+            ));
+
+        pre_line_numbers_ref.get().unwrap().set_text_content(Some(
+            get_line_numbers(textarea_code_ref.get().unwrap().value().as_str()).as_str(),
+        ));
+
+        // Synchronize scroll positions
+        let textarea = textarea_code_ref.get().unwrap();
+        let scroll_top = textarea.scroll_top();
+        let scroll_left = textarea.scroll_left();
+
+        pre_parsed_code_ref
+            .get()
+            .unwrap()
+            .set_scroll_top(scroll_top);
+
+        pre_parsed_code_ref
+            .get()
+            .unwrap()
+            .set_scroll_left(scroll_left);
+
+        pre_line_numbers_ref
+            .get()
+            .unwrap()
+            .set_scroll_top(scroll_top);
+
+        pre_line_numbers_ref
+            .get()
+            .unwrap()
+            .set_scroll_left(scroll_left);
+
+        leptos::logging::log!(
+            "Number of lines in code editor's components: textarea: {}, pre_parsed: {}, pre_line_numbers: {}",
+            textarea_code_ref.get().unwrap().value().lines().count(),
+            pre_parsed_code_ref
+                .get()
+                .unwrap()
+                .text_content()
+                .unwrap_or_default()
+                .lines()
+                .count(),
+            pre_line_numbers_ref
+                .get()
+                .unwrap()
+                .text_content()
+                .unwrap_or_default()
+                .lines()
+                .count()
+        );
+    };
+
+    Effect::new({
+        move |_| {
+            if let Some(textarea) = textarea_code_ref.get() {
+                if textarea.value() != code.get() {
+                    textarea.set_value(&code.get());
+                }
+            }
+
+            if let Some(pre) = pre_parsed_code_ref.get() {
+                pre.set_inner_html(&highlight_meklang_code(&code.get()));
             }
         }
     });
 
-    let on_input = move |_| {
-        if let Some(div) = code_editor_ref.get() {
-            set_code.set(div.inner_text());
-        }
-    };
-
     view! {
-        <div class="code-editor-container" style=code_editor_options.style()>
-            <div class="code-editor-scrollable">
-                <div class="code-editor-line-numbers">
-                    { line_numbers }
-                </div>
-                <div
-                    node_ref=code_editor_ref
-                    on:input=on_input
-                    contenteditable={!disabled}
-                    class="code-editor"
-                    spellcheck=false
-                >
-                </div>
-            </div>
+        <div class="code-editor-container" style=code_editor_options.get_formatted_size()>
+            <pre node_ref=pre_line_numbers_ref class="code-editor-line-numbers">
+                { move || line_numbers }
+            </pre>
+            <pre node_ref=pre_parsed_code_ref class="code-editor-highlighted">
+                { move || parsed_code }
+            </pre>
+            <textarea
+                node_ref=textarea_code_ref
+                on:input=sync
+                on:scroll=sync
+                class="code-editor"
+                spellcheck="false"
+            >
+            </textarea>
         </div>
     }
 }
@@ -86,7 +190,7 @@ pub fn CodeEditorWithOutput(
         <section class={extra_section_classes.to_string() + " flex-container flex-row"}>
             <div class="flex-1">
                 <h3>"Input in " <TextWithAnimatedGradient text="meklang" /> </h3>
-                <CodeEditor disabled=disable_input code_editor_options code=code set_code=set_code />
+                <CodeEditor disabled=disable_input code_editor_options=code_editor_options.clone() code=code set_code=set_code />
                 <Show
                     when=move || !parsing_error.get().is_empty()
                 >
@@ -97,7 +201,7 @@ pub fn CodeEditorWithOutput(
             </div>
             <div class="flex-1">
                 <h3>"Generated output in C"</h3>
-                <CodeEditor disabled=true code_editor_options code=parsed_code set_code=set_parsed_code />
+                <CodeEditor disabled=true code_editor_options=code_editor_options.clone() code=parsed_code set_code=set_parsed_code />
             </div>
         </section>
     }
@@ -111,13 +215,13 @@ fn get_line_numbers(code: &str) -> String {
     let number_of_lines = if code.is_empty() {
         1
     } else {
-        code.lines().count()
+        code.split('\n').count()
     };
 
     (1..=number_of_lines)
-        .map(|n| n.to_string())
+        .map(|n| n.to_string() + "\n")
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("")
 }
 
 #[cfg(test)]
@@ -126,15 +230,18 @@ mod tests {
 
     #[test]
     fn test_get_line_numbers() {
-        assert_eq!(get_line_numbers(""), "1");
-        assert_eq!(get_line_numbers("line1\nline2"), "1\n2");
-        assert_eq!(get_line_numbers("line1\nline2\nline3"), "1\n2\n3");
-        assert_eq!(get_line_numbers("line1\nline2\nline3\n"), "1\n2\n3");
-        assert_eq!(get_line_numbers("line1\nline2\nline3\nline4"), "1\n2\n3\n4");
+        assert_eq!(get_line_numbers(""), "1\n");
+        assert_eq!(get_line_numbers("line1\nline2"), "1\n2\n");
+        assert_eq!(get_line_numbers("line1\nline2\nline3"), "1\n2\n3\n");
+        assert_eq!(get_line_numbers("line1\nline2\nline3\n"), "1\n2\n3\n4\n");
+        assert_eq!(
+            get_line_numbers("line1\nline2\nline3\nline4"),
+            "1\n2\n3\n4\n"
+        );
     }
 
     #[test]
     fn test_get_line_numbers_with_multiple_empty_lines() {
-        assert_eq!(get_line_numbers("\n\n\n\n\n"), "1\n2\n3\n4\n5");
+        assert_eq!(get_line_numbers("\n\n\n\n\n"), "1\n2\n3\n4\n5\n6\n");
     }
 }

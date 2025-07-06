@@ -173,7 +173,7 @@ fn CheatsheetBoxWithCode(
     description: &'static str,
     code_example: &'static str,
 ) -> impl IntoView {
-    let height = code_example.lines().count() as u16 * 24;
+    let height = code_example.lines().count() as u32 * 28;
     let (code, set_code) = signal(code_example.to_string());
 
     view! {
@@ -183,8 +183,8 @@ fn CheatsheetBoxWithCode(
             <div class="center">
                 <CodeEditor
                     code_editor_options=CodeEditorOptions {
-                        width_in_pixels: 343,
-                        height_in_pixels: height,
+                        width: 375,
+                        height,
                     }
                     code
                     set_code

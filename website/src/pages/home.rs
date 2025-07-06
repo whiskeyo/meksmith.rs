@@ -53,8 +53,8 @@ struct MyStruct {
             </section>
             <CodeEditorWithOutput
                 code_editor_options=CodeEditorOptions {
-                    width_in_pixels: 350,
-                    height_in_pixels: 385,
+                    width: 380,
+                    height: 350,
                 }
                 extra_section_classes="w-800"
                 meklang_code=example_code
