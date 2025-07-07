@@ -9,3 +9,6 @@ meksmith = { path = "../meksmith" }
 leptos = { version = "0.8.2", features = ["csr"] }
 leptos_router = "0.8.2"
 console_error_panic_hook = "0.1.7"
+web-sys = "0.3.77"
+regex-lite = "0.1.6"
+once_cell = "1.21.3"

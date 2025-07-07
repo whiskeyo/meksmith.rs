@@ -23,10 +23,6 @@ pub fn NavigationBar() -> impl IntoView {
                         <a class="hyperlink" href="/cheatsheet">"cheatsheet"</a>
                     </li>
                     |
-                    <li class={move || if path().ends_with("/about") { "active" } else { "" }}>
-                        <a class="hyperlink" href="/about">"about"</a>
-                    </li>
-                    |
                     <li>
                         <a class="hyperlink" href="https://github.com/whiskeyo/meksmith.rs" rel="external">"repo"</a>
                     </li>
