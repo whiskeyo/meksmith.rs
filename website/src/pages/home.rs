@@ -56,15 +56,16 @@ struct MyStruct {
                     width: 380,
                     height: 350,
                     language: CodeEditorLanguage::Meklang,
+                    disabled: true,
                 }
                 output_code_editor_options=CodeEditorOptions {
                     width: 380,
                     height: 350,
                     language: CodeEditorLanguage::C,
+                    disabled: true,
                 }
                 extra_section_classes="w-800"
                 meklang_code=example_code
-                disable_input=true
             />
             <section class="w-800">
                 <h2>"Are you interested in using " <TextWithAnimatedGradient text="meksmith.rs" /> "?"</h2>

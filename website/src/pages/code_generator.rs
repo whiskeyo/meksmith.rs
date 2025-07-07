@@ -13,16 +13,17 @@ pub fn CodeGenerator() -> impl IntoView {
                     width: 785,
                     height: 600,
                     language: CodeEditorLanguage::Meklang,
+                    disabled: false,
                 }
                 output_code_editor_options=CodeEditorOptions {
                     width: 785,
                     height: 600,
                     language: CodeEditorLanguage::C,
+                    disabled: true,
                 }
                 extra_section_classes="w-1600"
                 // TODO: once an examples page is ready, change the generator to start with empty string
                 meklang_code=String::from(include_str!("../../../meksmith/examples/ecpri.mek"))
-                disable_input=false
             />
         </div>
     }

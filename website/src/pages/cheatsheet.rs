@@ -187,10 +187,10 @@ fn CheatsheetBoxWithCode(
                         width: 375,
                         height,
                         language: CodeEditorLanguage::Meklang,
+                        disabled: true,
                     }
                     code
                     set_code
-                    disabled=true
                 />
             </div>
         </div>

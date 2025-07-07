@@ -55,6 +55,7 @@ pub(crate) struct CodeEditorOptions {
     pub(crate) width: u32,
     pub(crate) height: u32,
     pub(crate) language: CodeEditorLanguage,
+    pub(crate) disabled: bool,
 }
 
 impl CodeEditorOptions {
@@ -104,7 +105,6 @@ impl LanguageHighlighter {
 #[component]
 pub fn CodeEditor(
     code_editor_options: CodeEditorOptions,
-    disabled: bool,
     #[prop(into)] code: ReadSignal<String>,
     #[prop(into)] set_code: WriteSignal<String>,
 ) -> impl IntoView {
@@ -118,10 +118,7 @@ pub fn CodeEditor(
         textarea.set_value(&code.get());
         textarea.set_spellcheck(false);
         textarea.set_class_name("code-editor");
-
-        if disabled {
-            textarea.set_attribute("disabled", "true").unwrap();
-        }
+        textarea.set_disabled(code_editor_options_for_textarea.disabled);
     });
 
     let pre_parsed_code_ref: NodeRef<leptos::html::Pre> = NodeRef::new();
@@ -233,7 +230,6 @@ pub fn CodeEditorWithOutput(
     output_code_editor_options: CodeEditorOptions,
     extra_section_classes: &'static str,
     meklang_code: String,
-    disable_input: bool,
 ) -> impl IntoView {
     let (code, set_code) = signal(meklang_code);
     let (parsed_code, set_parsed_code) = signal(String::new());
@@ -253,7 +249,7 @@ pub fn CodeEditorWithOutput(
         <section class={extra_section_classes.to_string() + " flex-container flex-row"}>
             <div class="flex-1">
                 <h3>"Input in " <TextWithAnimatedGradient text="meklang" /> </h3>
-                <CodeEditor disabled=disable_input code_editor_options=input_code_editor_options.clone() code=code set_code=set_code />
+                <CodeEditor code_editor_options=input_code_editor_options.clone() code=code set_code=set_code />
                 <Show
                     when=move || !parsing_error.get().is_empty()
                 >
@@ -264,7 +260,7 @@ pub fn CodeEditorWithOutput(
             </div>
             <div class="flex-1">
                 <h3>"Generated output in C"</h3>
-                <CodeEditor disabled=true code_editor_options=output_code_editor_options.clone() code=parsed_code set_code=set_parsed_code />
+                <CodeEditor code_editor_options=output_code_editor_options.clone() code=parsed_code set_code=set_parsed_code />
             </div>
         </section>
     }
@@ -297,6 +293,7 @@ mod tests {
             width: 800,
             height: 600,
             language: CodeEditorLanguage::PlainText,
+            disabled: false,
         };
 
         assert_eq!(options.get_formatted_size(), "width: 800px; height: 600px;");
