@@ -1,5 +1,6 @@
 use crate::components::text::TextWithAnimatedGradient;
 use leptos::prelude::*;
+use regex_lite::Regex;
 
 #[derive(Clone, Debug)]
 pub(crate) enum CodeEditorLanguage {
@@ -10,23 +11,26 @@ pub(crate) enum CodeEditorLanguage {
 
 impl CodeEditorLanguage {
     fn get_highlighter(&self) -> LanguageHighlighter {
+        const KEYWORD_CLASS: &str = "code-editor-highlight-keyword";
+        const BUILTIN_TYPE_CLASS: &str = "code-editor-highlight-builtin-type";
+        const COMMENT_CLASS: &str = "code-editor-highlight-comment";
+
         match self {
             CodeEditorLanguage::None => LanguageHighlighter {
-                keywords: vec![],
-                builtin_types: vec![],
+                rules: vec![],
             },
             CodeEditorLanguage::Meklang => LanguageHighlighter {
-                keywords: vec!["enum ", "struct ", "union ", "using "],
-                builtin_types: vec![
-                    "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64",
-                    "float32", "float64", "bit", "byte",
-                ],
+                rules: vec![
+                    (KEYWORD_CLASS, Regex::new(r"\b(enum|struct|union|using)\b").unwrap()),
+                    (BUILTIN_TYPE_CLASS, Regex::new(r"\b(uint8|uint16|uint32|uint64|int8|int16|int32|int64|float32|float64|bit|byte)\b").unwrap()),
+                    (COMMENT_CLASS, Regex::new(r"#.*").unwrap()),
+                ]
             },
             CodeEditorLanguage::C => LanguageHighlighter {
-                keywords: vec![
-                    "if", "else", "while", "for", "return", "struct", "union", "enum", "typedef",
-                ],
-                builtin_types: vec![],
+                rules: vec![
+                    (KEYWORD_CLASS, Regex::new(r"\b(enum|struct|union|typedef|static)\b").unwrap()),
+                    (BUILTIN_TYPE_CLASS, Regex::new(r"\b(int|unsigned|long|uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|int64_t|float|double|bool|char)\b").unwrap()),
+                ]
             },
         }
     }
@@ -53,9 +57,11 @@ impl CodeEditorOptions {
     }
 }
 
+type CssClass = &'static str;
+
 struct LanguageHighlighter {
-    keywords: Vec<&'static str>,
-    builtin_types: Vec<&'static str>,
+    // TODO: using regex is not the greatest option for performance, it needs to be optimized
+    rules: Vec<(CssClass, Regex)>,
 }
 
 impl LanguageHighlighter {
@@ -69,20 +75,12 @@ impl LanguageHighlighter {
 
         let mut highlighted_code = escape_html(code);
 
-        for keyword in &self.keywords {
-            highlighted_code = highlighted_code.replace(
-                keyword,
-                &format!("<span class=\"code-editor-highlight-keyword\">{keyword}</span>"),
-            );
-        }
-
-        for builtin_type in &self.builtin_types {
-            highlighted_code = highlighted_code.replace(
-                builtin_type,
-                &format!(
-                    "<span class=\"code-editor-highlight-builtin-type\">{builtin_type}</span>"
-                ),
-            );
+        for (css_class, regex) in &self.rules {
+            highlighted_code = regex
+                .replace_all(&highlighted_code, |caps: &regex_lite::Captures| {
+                    format!(r#"<span class="{}">{}</span>"#, css_class, &caps[0])
+                })
+                .to_string();
         }
 
         if highlighted_code.ends_with('\n') {
@@ -133,19 +131,38 @@ pub fn CodeEditor(
         pre.set_text_content(Some(&get_line_numbers(&code.get())));
     });
 
-    let code_editor_options_for_sync = code_editor_options.clone();
-    let sync = move |_| {
+    let code_editor_options_for_input_sync = code_editor_options.clone();
+    let input_sync = move |_| {
         let textarea = textarea_code_ref.get().unwrap();
         let pre_parsed_code = pre_parsed_code_ref.get().unwrap();
         let pre_line_numbers = pre_line_numbers_ref.get().unwrap();
 
         set_code.set(textarea.value());
         pre_parsed_code.set_inner_html(
-            code_editor_options_for_sync
+            code_editor_options_for_input_sync
                 .clone()
                 .highlight_code(&textarea.value())
                 .as_str(),
         );
+        pre_line_numbers
+            .set_text_content(Some(get_line_numbers(textarea.value().as_str()).as_str()));
+
+        // Synchronize scroll position between textarea, rendered code, and line numbers
+        let scroll_top = textarea.scroll_top();
+        let scroll_left = textarea.scroll_left();
+
+        pre_parsed_code.set_scroll_top(scroll_top);
+        pre_parsed_code.set_scroll_left(scroll_left);
+        pre_line_numbers.set_scroll_top(scroll_top);
+        pre_line_numbers.set_scroll_left(scroll_left);
+    };
+
+    let scroll_sync = move |_| {
+        let textarea = textarea_code_ref.get().unwrap();
+        let pre_parsed_code = pre_parsed_code_ref.get().unwrap();
+        let pre_line_numbers = pre_line_numbers_ref.get().unwrap();
+
+        set_code.set(textarea.value());
         pre_line_numbers
             .set_text_content(Some(get_line_numbers(textarea.value().as_str()).as_str()));
 
@@ -197,8 +214,8 @@ pub fn CodeEditor(
             <pre node_ref=pre_line_numbers_ref></pre>
             <pre node_ref=pre_parsed_code_ref></pre>
             <textarea node_ref=textarea_code_ref
-                on:input=sync.clone()
-                on:scroll=sync.clone()
+                on:input=input_sync
+                on:scroll=scroll_sync
                 on:keydown=keydown
             ></textarea>
         </div>
