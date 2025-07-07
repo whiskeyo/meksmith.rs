@@ -196,9 +196,9 @@ img.logo {
     border-color: inherit;
 }
 
-.code-editor-highlight-keyword {
-    color: var(--green-color-lightest);
-}
+.code-editor-highlight-keyword { color: var(--green-color); }
+.code-editor-highlight-builtin-type { color: var(--green-color-light); }
+.code-editor-highlight-operator { color: var(--green-color-lightest); }
 
 .code-editor-error-box {
     position: absolute;

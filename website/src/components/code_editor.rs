@@ -8,6 +8,30 @@ pub(crate) enum CodeEditorLanguage {
     C,
 }
 
+impl CodeEditorLanguage {
+    fn get_highlighter(&self) -> LanguageHighlighter {
+        match self {
+            CodeEditorLanguage::None => LanguageHighlighter {
+                keywords: vec![],
+                builtin_types: vec![],
+            },
+            CodeEditorLanguage::Meklang => LanguageHighlighter {
+                keywords: vec!["enum ", "struct ", "union ", "using "],
+                builtin_types: vec![
+                    "uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64",
+                    "float32", "float64", "bit", "byte",
+                ],
+            },
+            CodeEditorLanguage::C => LanguageHighlighter {
+                keywords: vec![
+                    "if", "else", "while", "for", "return", "struct", "union", "enum", "typedef",
+                ],
+                builtin_types: vec![],
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct CodeEditorOptions {
     pub(crate) width: u32,
@@ -20,39 +44,53 @@ impl CodeEditorOptions {
         format!("width: {}px; height: {}px;", self.width, self.height)
     }
 
-    pub(crate) fn highlight_code(&self, code: String) -> String {
+    pub(crate) fn highlight_code(&self, code: &str) -> String {
         match self.language {
-            CodeEditorLanguage::None => escape_html(&code),
-            CodeEditorLanguage::Meklang => highlight_meklang_code(&code),
-            CodeEditorLanguage::C => escape_html(&code),
+            CodeEditorLanguage::None => self.language.get_highlighter().highlight(code),
+            CodeEditorLanguage::Meklang => self.language.get_highlighter().highlight(code),
+            CodeEditorLanguage::C => self.language.get_highlighter().highlight(code),
         }
     }
 }
 
-const MEKLANG_KEYWORDS: [&str; 4] = ["enum ", "struct ", "union ", "using "];
-
-fn escape_html(input: &str) -> String {
-    input
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
+struct LanguageHighlighter {
+    keywords: Vec<&'static str>,
+    builtin_types: Vec<&'static str>,
 }
 
-fn highlight_meklang_code(code: &str) -> String {
-    let mut highlighted_code = escape_html(code);
+impl LanguageHighlighter {
+    fn highlight(&self, code: &str) -> String {
+        fn escape_html(input: &str) -> String {
+            input
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+        }
 
-    MEKLANG_KEYWORDS.iter().for_each(|keyword| {
-        highlighted_code = highlighted_code.replace(
-            keyword,
-            &format!("<span class=\"code-editor-highlight-keyword\">{keyword}</span>"),
-        );
-    });
+        let mut highlighted_code = escape_html(code);
 
-    if highlighted_code.ends_with('\n') {
-        highlighted_code.push(' ');
+        for keyword in &self.keywords {
+            highlighted_code = highlighted_code.replace(
+                keyword,
+                &format!("<span class=\"code-editor-highlight-keyword\">{keyword}</span>"),
+            );
+        }
+
+        for builtin_type in &self.builtin_types {
+            highlighted_code = highlighted_code.replace(
+                builtin_type,
+                &format!(
+                    "<span class=\"code-editor-highlight-builtin-type\">{builtin_type}</span>"
+                ),
+            );
+        }
+
+        if highlighted_code.ends_with('\n') {
+            highlighted_code.push(' ');
+        }
+
+        highlighted_code
     }
-
-    highlighted_code
 }
 
 #[component]
@@ -84,7 +122,7 @@ pub fn CodeEditor(
         pre.set_inner_html(
             &code_editor_options_for_pre
                 .clone()
-                .highlight_code(code.get()),
+                .highlight_code(&code.get()),
         );
     });
 
@@ -105,7 +143,7 @@ pub fn CodeEditor(
         pre_parsed_code.set_inner_html(
             code_editor_options_for_sync
                 .clone()
-                .highlight_code(textarea.value())
+                .highlight_code(&textarea.value())
                 .as_str(),
         );
         pre_line_numbers
@@ -131,7 +169,7 @@ pub fn CodeEditor(
             }
 
             if let Some(pre) = pre_parsed_code_ref.get() {
-                pre.set_inner_html(&code_editor_options_for_effect.highlight_code(code.get()));
+                pre.set_inner_html(&code_editor_options_for_effect.highlight_code(&code.get()));
             }
         }
     });
