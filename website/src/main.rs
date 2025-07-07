@@ -3,7 +3,6 @@ mod pages;
 mod utils;
 
 use crate::components::navbar::NavigationBar;
-use crate::pages::about::About;
 use crate::pages::cheatsheet::Cheatsheet;
 use crate::pages::code_generator::CodeGenerator;
 use crate::pages::home::Home;
@@ -27,7 +26,6 @@ fn App() -> impl IntoView {
                     <Route path=leptos_router::path!("/") view=Home/>
                     <Route path=leptos_router::path!("/code-generator") view=CodeGenerator/>
                     <Route path=leptos_router::path!("/cheatsheet") view=Cheatsheet/>
-                    <Route path=leptos_router::path!("/about") view=About/>
                 </Routes>
             </main>
         </Router>
