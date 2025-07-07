@@ -7,7 +7,7 @@ use regex_lite::Regex;
 #[derive(Clone, Debug)]
 pub(crate) enum CodeEditorLanguage {
     #[allow(dead_code)]
-    None,
+    PlainText,
     Meklang,
     C,
 }
@@ -32,7 +32,7 @@ impl CodeEditorLanguage {
         const COMMENT_CLASS: &str = "code-editor-highlight-comment";
 
         match self {
-            CodeEditorLanguage::None => LanguageHighlighter { rules: vec![] },
+            CodeEditorLanguage::PlainText => LanguageHighlighter { rules: vec![] },
             CodeEditorLanguage::Meklang => LanguageHighlighter {
                 rules: vec![
                     (KEYWORD_CLASS, &MEKLANG_KEYWORDS_REGEX),
@@ -64,7 +64,7 @@ impl CodeEditorOptions {
 
     pub(crate) fn highlight_code(&self, code: &str) -> String {
         match self.language {
-            CodeEditorLanguage::None => self.language.get_highlighter().highlight(code),
+            CodeEditorLanguage::PlainText => self.language.get_highlighter().highlight(code),
             CodeEditorLanguage::Meklang => self.language.get_highlighter().highlight(code),
             CodeEditorLanguage::C => self.language.get_highlighter().highlight(code),
         }
@@ -296,7 +296,7 @@ mod tests {
         let options = CodeEditorOptions {
             width: 800,
             height: 600,
-            language: CodeEditorLanguage::None,
+            language: CodeEditorLanguage::PlainText,
         };
 
         assert_eq!(options.get_formatted_size(), "width: 800px; height: 600px;");
