@@ -20,7 +20,7 @@ pub fn CodeGenerator() -> impl IntoView {
                     language: CodeEditorLanguage::C,
                 }
                 extra_section_classes="w-1600"
-                // meklang_code=String::new()
+                // TODO: once an examples page is ready, change the generator to start with empty string
                 meklang_code=String::from(include_str!("../../../meksmith/examples/ecpri.mek"))
                 disable_input=false
             />

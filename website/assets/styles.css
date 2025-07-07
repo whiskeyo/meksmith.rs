@@ -199,7 +199,7 @@ img.logo {
 
 .code-editor-highlight-keyword { color: var(--green-color); }
 .code-editor-highlight-builtin-type { color: var(--green-color-light); }
-.code-editor-highlight-comment { color: var(--green-color-darkest); font-style: italic; }
+.code-editor-highlight-comment { color: var(--green-color-dark); font-style: italic; }
 
 .code-editor-error-box {
     position: absolute;

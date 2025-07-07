@@ -986,6 +986,7 @@ dependencies = [
  "leptos",
  "leptos_router",
  "meksmith",
+ "once_cell",
  "regex-lite",
  "web-sys",
 ]

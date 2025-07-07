@@ -1,5 +1,6 @@
 mod components;
 mod pages;
+mod utils;
 
 use crate::components::navbar::NavigationBar;
 use crate::pages::about::About;

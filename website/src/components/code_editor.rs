@@ -1,13 +1,29 @@
 use crate::components::text::TextWithAnimatedGradient;
+use crate::utils::static_regex::static_regex;
+
 use leptos::prelude::*;
 use regex_lite::Regex;
 
 #[derive(Clone, Debug)]
 pub(crate) enum CodeEditorLanguage {
+    #[allow(dead_code)]
     None,
     Meklang,
     C,
 }
+
+static_regex!(MEKLANG_KEYWORDS_REGEX, r"\b(enum|struct|union|using)\b");
+static_regex!(
+    MEKLANG_BUILTIN_TYPES_REGEX,
+    r"\b(uint8|uint16|uint32|uint64|int8|int16|int32|int64|float32|float64|bit|byte)\b"
+);
+static_regex!(MEKLANG_COMMENT_REGEX, r"#.*");
+
+static_regex!(C_KEYWORDS_REGEX, r"\b(enum|struct|union|typedef|static)\b");
+static_regex!(
+    C_BUILTIN_TYPES_REGEX,
+    r"\b(int|unsigned|long|uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|int64_t|float|double|bool|char)\b"
+);
 
 impl CodeEditorLanguage {
     fn get_highlighter(&self) -> LanguageHighlighter {
@@ -16,21 +32,19 @@ impl CodeEditorLanguage {
         const COMMENT_CLASS: &str = "code-editor-highlight-comment";
 
         match self {
-            CodeEditorLanguage::None => LanguageHighlighter {
-                rules: vec![],
-            },
+            CodeEditorLanguage::None => LanguageHighlighter { rules: vec![] },
             CodeEditorLanguage::Meklang => LanguageHighlighter {
                 rules: vec![
-                    (KEYWORD_CLASS, Regex::new(r"\b(enum|struct|union|using)\b").unwrap()),
-                    (BUILTIN_TYPE_CLASS, Regex::new(r"\b(uint8|uint16|uint32|uint64|int8|int16|int32|int64|float32|float64|bit|byte)\b").unwrap()),
-                    (COMMENT_CLASS, Regex::new(r"#.*").unwrap()),
-                ]
+                    (KEYWORD_CLASS, &MEKLANG_KEYWORDS_REGEX),
+                    (BUILTIN_TYPE_CLASS, &MEKLANG_BUILTIN_TYPES_REGEX),
+                    (COMMENT_CLASS, &MEKLANG_COMMENT_REGEX),
+                ],
             },
             CodeEditorLanguage::C => LanguageHighlighter {
                 rules: vec![
-                    (KEYWORD_CLASS, Regex::new(r"\b(enum|struct|union|typedef|static)\b").unwrap()),
-                    (BUILTIN_TYPE_CLASS, Regex::new(r"\b(int|unsigned|long|uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|int64_t|float|double|bool|char)\b").unwrap()),
-                ]
+                    (KEYWORD_CLASS, &C_KEYWORDS_REGEX),
+                    (BUILTIN_TYPE_CLASS, &C_BUILTIN_TYPES_REGEX),
+                ],
             },
         }
     }
@@ -59,28 +73,24 @@ impl CodeEditorOptions {
 
 type CssClass = &'static str;
 
+#[derive(Clone, Debug)]
 struct LanguageHighlighter {
-    // TODO: using regex is not the greatest option for performance, it needs to be optimized
-    rules: Vec<(CssClass, Regex)>,
+    rules: Vec<(CssClass, &'static Regex)>,
 }
 
 impl LanguageHighlighter {
     fn highlight(&self, code: &str) -> String {
-        fn escape_html(input: &str) -> String {
-            input
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-        }
-
-        let mut highlighted_code = escape_html(code);
+        let mut highlighted_code = code
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;");
 
         for (css_class, regex) in &self.rules {
             highlighted_code = regex
                 .replace_all(&highlighted_code, |caps: &regex_lite::Captures| {
                     format!(r#"<span class="{}">{}</span>"#, css_class, &caps[0])
                 })
-                .to_string();
+                .into_owned();
         }
 
         if highlighted_code.ends_with('\n') {
@@ -98,6 +108,8 @@ pub fn CodeEditor(
     #[prop(into)] code: ReadSignal<String>,
     #[prop(into)] set_code: WriteSignal<String>,
 ) -> impl IntoView {
+    let language_highlighter = code_editor_options.language.get_highlighter();
+
     let textarea_code_ref: NodeRef<leptos::html::Textarea> = NodeRef::new();
     let code_editor_options_for_textarea = code_editor_options.clone();
     textarea_code_ref.on_load(move |textarea| {
@@ -131,7 +143,7 @@ pub fn CodeEditor(
         pre.set_text_content(Some(&get_line_numbers(&code.get())));
     });
 
-    let code_editor_options_for_input_sync = code_editor_options.clone();
+    let language_highlighter_for_input_sync = language_highlighter.clone();
     let input_sync = move |_| {
         let textarea = textarea_code_ref.get().unwrap();
         let pre_parsed_code = pre_parsed_code_ref.get().unwrap();
@@ -139,15 +151,13 @@ pub fn CodeEditor(
 
         set_code.set(textarea.value());
         pre_parsed_code.set_inner_html(
-            code_editor_options_for_input_sync
-                .clone()
-                .highlight_code(&textarea.value())
+            language_highlighter_for_input_sync
+                .highlight(&textarea.value())
                 .as_str(),
         );
         pre_line_numbers
             .set_text_content(Some(get_line_numbers(textarea.value().as_str()).as_str()));
 
-        // Synchronize scroll position between textarea, rendered code, and line numbers
         let scroll_top = textarea.scroll_top();
         let scroll_left = textarea.scroll_left();
 
@@ -162,11 +172,6 @@ pub fn CodeEditor(
         let pre_parsed_code = pre_parsed_code_ref.get().unwrap();
         let pre_line_numbers = pre_line_numbers_ref.get().unwrap();
 
-        set_code.set(textarea.value());
-        pre_line_numbers
-            .set_text_content(Some(get_line_numbers(textarea.value().as_str()).as_str()));
-
-        // Synchronize scroll position between textarea, rendered code, and line numbers
         let scroll_top = textarea.scroll_top();
         let scroll_left = textarea.scroll_left();
 
@@ -184,7 +189,6 @@ pub fn CodeEditor(
             let end = textarea.selection_end().unwrap_or(Some(0)).unwrap_or(0) as usize;
             let value = textarea.value();
 
-            // Insert a tab character at the cursor position
             let new_value = format!("{}\t{}", &value[..start], &value[end..]);
             set_code.set(new_value.clone());
             textarea.set_value(&new_value);
@@ -194,8 +198,8 @@ pub fn CodeEditor(
         }
     };
 
+    let language_highlighter_for_effect = language_highlighter.clone();
     Effect::new({
-        let code_editor_options_for_effect = code_editor_options.clone();
         move |_| {
             if let Some(textarea) = textarea_code_ref.get() {
                 if textarea.value() != code.get() {
@@ -204,7 +208,7 @@ pub fn CodeEditor(
             }
 
             if let Some(pre) = pre_parsed_code_ref.get() {
-                pre.set_inner_html(&code_editor_options_for_effect.highlight_code(&code.get()));
+                pre.set_inner_html(&language_highlighter_for_effect.highlight(&code.get()));
             }
         }
     });
@@ -217,6 +221,7 @@ pub fn CodeEditor(
                 on:input=input_sync
                 on:scroll=scroll_sync
                 on:keydown=keydown
+                aria-label="Code editor"
             ></textarea>
         </div>
     }
