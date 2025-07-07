@@ -133,7 +133,7 @@ img.logo {
 .code-editor-container {
     position: relative;
     font-family: monospace;
-    border: 1px solid var(--primary-color);
+    border: 2px solid var(--green-color-darkest);
 }
 
 .code-editor-line-numbers, .code-editor-highlighted, .code-editor {
@@ -144,7 +144,7 @@ img.logo {
     font-size: var(--code-editor-font-size);
     line-height: 1.5;
     margin: 0;
-    padding: 8px 0 0px 0;
+    padding: 8px 0 0 0;
     box-sizing: border-box;
     white-space: pre;
     word-wrap: normal;

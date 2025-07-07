@@ -2,14 +2,30 @@ use crate::components::text::TextWithAnimatedGradient;
 use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
+pub(crate) enum CodeEditorLanguage {
+    None,
+    Meklang,
+    C,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct CodeEditorOptions {
     pub(crate) width: u32,
     pub(crate) height: u32,
+    pub(crate) language: CodeEditorLanguage,
 }
 
 impl CodeEditorOptions {
     pub(crate) fn get_formatted_size(&self) -> String {
         format!("width: {}px; height: {}px;", self.width, self.height)
+    }
+
+    pub(crate) fn highlight_code(&self, code: String) -> String {
+        match self.language {
+            CodeEditorLanguage::None => escape_html(&code),
+            CodeEditorLanguage::Meklang => highlight_meklang_code(&code),
+            CodeEditorLanguage::C => escape_html(&code),
+        }
     }
 }
 
@@ -46,15 +62,14 @@ pub fn CodeEditor(
     #[prop(into)] code: ReadSignal<String>,
     #[prop(into)] set_code: WriteSignal<String>,
 ) -> impl IntoView {
-    let line_numbers = move || get_line_numbers(&code.get());
-    // let (parsed_code, set_parsed_code) = signal(highlight_meklang_code(&code.get()));
-    let parsed_code = move || highlight_meklang_code(&code.get());
-
     let textarea_code_ref: NodeRef<leptos::html::Textarea> = NodeRef::new();
+    let code_editor_options_for_textarea = code_editor_options.clone();
     textarea_code_ref.on_load(move |textarea| {
-        textarea.set_cols(code_editor_options.width);
-        textarea.set_rows(code_editor_options.height);
+        textarea.set_cols(code_editor_options_for_textarea.width);
+        textarea.set_rows(code_editor_options_for_textarea.height);
         textarea.set_value(&code.get());
+        textarea.set_spellcheck(false);
+        textarea.set_class_name("code-editor");
 
         if disabled {
             textarea.set_attribute("disabled", "true").unwrap();
@@ -62,76 +77,52 @@ pub fn CodeEditor(
     });
 
     let pre_parsed_code_ref: NodeRef<leptos::html::Pre> = NodeRef::new();
+    let code_editor_options_for_pre = code_editor_options.clone();
     pre_parsed_code_ref.on_load(move |pre| {
+        pre.set_class_name("code-editor-highlighted");
         pre.set_scroll_top(textarea_code_ref.get().unwrap().scroll_top());
+        pre.set_inner_html(
+            &code_editor_options_for_pre
+                .clone()
+                .highlight_code(code.get()),
+        );
     });
 
     let pre_line_numbers_ref: NodeRef<leptos::html::Pre> = NodeRef::new();
     pre_line_numbers_ref.on_load(move |pre| {
+        pre.set_class_name("code-editor-line-numbers");
         pre.set_scroll_top(textarea_code_ref.get().unwrap().scroll_top());
+        pre.set_text_content(Some(&get_line_numbers(&code.get())));
     });
 
+    let code_editor_options_for_sync = code_editor_options.clone();
     let sync = move |_| {
-        let code_value = textarea_code_ref.get().unwrap().value();
-        set_code.set(code_value.clone());
-        // set_parsed_code.set(highlight_meklang_code(&code_value));
-        pre_parsed_code_ref
-            .get()
-            .unwrap()
-            .set_inner_html(&highlight_meklang_code(
-                &textarea_code_ref.get().unwrap().value(),
-            ));
-
-        pre_line_numbers_ref.get().unwrap().set_text_content(Some(
-            get_line_numbers(textarea_code_ref.get().unwrap().value().as_str()).as_str(),
-        ));
-
-        // Synchronize scroll positions
         let textarea = textarea_code_ref.get().unwrap();
+        let pre_parsed_code = pre_parsed_code_ref.get().unwrap();
+        let pre_line_numbers = pre_line_numbers_ref.get().unwrap();
+
+        set_code.set(textarea.value());
+        pre_parsed_code.set_inner_html(
+            code_editor_options_for_sync
+                .clone()
+                .highlight_code(textarea.value())
+                .as_str(),
+        );
+        pre_line_numbers
+            .set_text_content(Some(get_line_numbers(textarea.value().as_str()).as_str()));
+
+        // Synchronize scroll position between textarea, rendered code, and line numbers
         let scroll_top = textarea.scroll_top();
         let scroll_left = textarea.scroll_left();
 
-        pre_parsed_code_ref
-            .get()
-            .unwrap()
-            .set_scroll_top(scroll_top);
-
-        pre_parsed_code_ref
-            .get()
-            .unwrap()
-            .set_scroll_left(scroll_left);
-
-        pre_line_numbers_ref
-            .get()
-            .unwrap()
-            .set_scroll_top(scroll_top);
-
-        pre_line_numbers_ref
-            .get()
-            .unwrap()
-            .set_scroll_left(scroll_left);
-
-        leptos::logging::log!(
-            "Number of lines in code editor's components: textarea: {}, pre_parsed: {}, pre_line_numbers: {}",
-            textarea_code_ref.get().unwrap().value().lines().count(),
-            pre_parsed_code_ref
-                .get()
-                .unwrap()
-                .text_content()
-                .unwrap_or_default()
-                .lines()
-                .count(),
-            pre_line_numbers_ref
-                .get()
-                .unwrap()
-                .text_content()
-                .unwrap_or_default()
-                .lines()
-                .count()
-        );
+        pre_parsed_code.set_scroll_top(scroll_top);
+        pre_parsed_code.set_scroll_left(scroll_left);
+        pre_line_numbers.set_scroll_top(scroll_top);
+        pre_line_numbers.set_scroll_left(scroll_left);
     };
 
     Effect::new({
+        let code_editor_options_for_effect = code_editor_options.clone();
         move |_| {
             if let Some(textarea) = textarea_code_ref.get() {
                 if textarea.value() != code.get() {
@@ -140,34 +131,24 @@ pub fn CodeEditor(
             }
 
             if let Some(pre) = pre_parsed_code_ref.get() {
-                pre.set_inner_html(&highlight_meklang_code(&code.get()));
+                pre.set_inner_html(&code_editor_options_for_effect.highlight_code(code.get()));
             }
         }
     });
 
     view! {
-        <div class="code-editor-container" style=code_editor_options.get_formatted_size()>
-            <pre node_ref=pre_line_numbers_ref class="code-editor-line-numbers">
-                { move || line_numbers }
-            </pre>
-            <pre node_ref=pre_parsed_code_ref class="code-editor-highlighted">
-                { move || parsed_code }
-            </pre>
-            <textarea
-                node_ref=textarea_code_ref
-                on:input=sync
-                on:scroll=sync
-                class="code-editor"
-                spellcheck="false"
-            >
-            </textarea>
+        <div class="code-editor-container" style=code_editor_options.clone().get_formatted_size()>
+            <pre node_ref=pre_line_numbers_ref></pre>
+            <pre node_ref=pre_parsed_code_ref></pre>
+            <textarea node_ref=textarea_code_ref on:input=sync.clone() on:scroll=sync.clone()></textarea>
         </div>
     }
 }
 
 #[component]
 pub fn CodeEditorWithOutput(
-    code_editor_options: CodeEditorOptions,
+    input_code_editor_options: CodeEditorOptions,
+    output_code_editor_options: CodeEditorOptions,
     extra_section_classes: &'static str,
     meklang_code: String,
     disable_input: bool,
@@ -190,7 +171,7 @@ pub fn CodeEditorWithOutput(
         <section class={extra_section_classes.to_string() + " flex-container flex-row"}>
             <div class="flex-1">
                 <h3>"Input in " <TextWithAnimatedGradient text="meklang" /> </h3>
-                <CodeEditor disabled=disable_input code_editor_options=code_editor_options.clone() code=code set_code=set_code />
+                <CodeEditor disabled=disable_input code_editor_options=input_code_editor_options.clone() code=code set_code=set_code />
                 <Show
                     when=move || !parsing_error.get().is_empty()
                 >
@@ -201,7 +182,7 @@ pub fn CodeEditorWithOutput(
             </div>
             <div class="flex-1">
                 <h3>"Generated output in C"</h3>
-                <CodeEditor disabled=true code_editor_options=code_editor_options.clone() code=parsed_code set_code=set_parsed_code />
+                <CodeEditor disabled=true code_editor_options=output_code_editor_options.clone() code=parsed_code set_code=set_parsed_code />
             </div>
         </section>
     }
@@ -227,6 +208,17 @@ fn get_line_numbers(code: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_code_editor_options_get_formatted_size() {
+        let options = CodeEditorOptions {
+            width: 800,
+            height: 600,
+            language: CodeEditorLanguage::None,
+        };
+
+        assert_eq!(options.get_formatted_size(), "width: 800px; height: 600px;");
+    }
 
     #[test]
     fn test_get_line_numbers() {

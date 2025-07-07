@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::components::code_editor::{CodeEditor, CodeEditorOptions};
+use crate::components::code_editor::{CodeEditor, CodeEditorLanguage, CodeEditorOptions};
 use crate::components::text::TextWithAnimatedGradient;
 
 const MEKLANG_BNF_GRAMMAR: &str = r#"<protocol> ::= (<definition> | <comment>)+
@@ -78,6 +78,7 @@ const MEKLANG_STRUCTURE_EXAMPLE: &str = r#"struct StructureName {
     first_field: uint8;
     second_field: int16;
     third_field: bit;
+    fourth_field: int64[2];
 };"#;
 
 const MEKLANG_ENUMERATION_EXAMPLE: &str = r#"enum EnumerationName {
@@ -173,7 +174,7 @@ fn CheatsheetBoxWithCode(
     description: &'static str,
     code_example: &'static str,
 ) -> impl IntoView {
-    let height = code_example.lines().count() as u32 * 28;
+    let height = code_example.lines().count() as u32 * 26;
     let (code, set_code) = signal(code_example.to_string());
 
     view! {
@@ -185,6 +186,7 @@ fn CheatsheetBoxWithCode(
                     code_editor_options=CodeEditorOptions {
                         width: 375,
                         height,
+                        language: CodeEditorLanguage::Meklang,
                     }
                     code
                     set_code
