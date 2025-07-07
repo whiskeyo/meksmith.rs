@@ -64,11 +64,7 @@ impl CodeEditorOptions {
     }
 
     pub(crate) fn highlight_code(&self, code: &str) -> String {
-        match self.language {
-            CodeEditorLanguage::PlainText => self.language.get_highlighter().highlight(code),
-            CodeEditorLanguage::Meklang => self.language.get_highlighter().highlight(code),
-            CodeEditorLanguage::C => self.language.get_highlighter().highlight(code),
-        }
+        self.language.get_highlighter().highlight(code)
     }
 }
 
@@ -206,6 +202,10 @@ pub fn CodeEditor(
 
             if let Some(pre) = pre_parsed_code_ref.get() {
                 pre.set_inner_html(&language_highlighter_for_effect.highlight(&code.get()));
+            }
+
+            if let Some(pre) = pre_line_numbers_ref.get() {
+                pre.set_text_content(Some(get_line_numbers(&code.get()).as_str()));
             }
         }
     });
