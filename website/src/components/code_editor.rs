@@ -159,6 +159,24 @@ pub fn CodeEditor(
         pre_line_numbers.set_scroll_left(scroll_left);
     };
 
+    let keydown = move |event: web_sys::KeyboardEvent| {
+        if event.key() == "Tab" {
+            event.prevent_default();
+            let textarea = textarea_code_ref.get().unwrap();
+            let start = textarea.selection_start().unwrap_or(Some(0)).unwrap_or(0) as usize;
+            let end = textarea.selection_end().unwrap_or(Some(0)).unwrap_or(0) as usize;
+            let value = textarea.value();
+
+            // Insert a tab character at the cursor position
+            let new_value = format!("{}\t{}", &value[..start], &value[end..]);
+            set_code.set(new_value.clone());
+            textarea.set_value(&new_value);
+            textarea
+                .set_selection_range((start + 1) as u32, (start + 1) as u32)
+                .unwrap();
+        }
+    };
+
     Effect::new({
         let code_editor_options_for_effect = code_editor_options.clone();
         move |_| {
@@ -178,7 +196,11 @@ pub fn CodeEditor(
         <div class="code-editor-container" style=code_editor_options.clone().get_formatted_size()>
             <pre node_ref=pre_line_numbers_ref></pre>
             <pre node_ref=pre_parsed_code_ref></pre>
-            <textarea node_ref=textarea_code_ref on:input=sync.clone() on:scroll=sync.clone()></textarea>
+            <textarea node_ref=textarea_code_ref
+                on:input=sync.clone()
+                on:scroll=sync.clone()
+                on:keydown=keydown
+            ></textarea>
         </div>
     }
 }

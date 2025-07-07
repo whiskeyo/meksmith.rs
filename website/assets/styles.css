@@ -151,6 +151,7 @@ img.logo {
     overflow-wrap: normal;
     overflow: auto;
     overflow-x: auto;
+    tab-size: 4;
 }
 
 .code-editor-line-numbers {
