@@ -175,20 +175,7 @@ pub fn CodeEditor(
     };
 
     let keydown = move |event: web_sys::KeyboardEvent| {
-        if event.key() == "Tab" {
-            event.prevent_default();
-            let textarea = textarea_code_ref.get().unwrap();
-            let start = textarea.selection_start().unwrap_or(Some(0)).unwrap_or(0) as usize;
-            let end = textarea.selection_end().unwrap_or(Some(0)).unwrap_or(0) as usize;
-            let value = textarea.value();
-
-            let new_value = format!("{}\t{}", &value[..start], &value[end..]);
-            set_code.set(new_value.clone());
-            textarea.set_value(&new_value);
-            textarea
-                .set_selection_range((start + 1) as u32, (start + 1) as u32)
-                .unwrap();
-        }
+        CodeEditorShortcut::from(event.clone()).handle_event(event, &textarea_code_ref, &set_code);
     };
 
     let language_highlighter_for_effect = language_highlighter.clone();
@@ -281,6 +268,267 @@ fn get_line_numbers(code: &str) -> String {
         .map(|n| n.to_string() + "\n")
         .collect::<Vec<_>>()
         .join("")
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum CodeEditorShortcut {
+    Tab,
+    ShiftTab,
+    CtrlLeftBracket,
+    CtrlRightBracket,
+    CtrlX,
+    AltDownArrow,
+    AltUpArrow,
+    Other,
+}
+
+impl CodeEditorShortcut {
+    pub fn handle_event(
+        &self,
+        event: web_sys::KeyboardEvent,
+        textarea_ref: &NodeRef<leptos::html::Textarea>,
+        set_code: &WriteSignal<String>,
+    ) {
+        match self {
+            CodeEditorShortcut::Tab => self.tab(event, textarea_ref, set_code),
+            CodeEditorShortcut::ShiftTab => self.outdent(event, textarea_ref, set_code),
+            CodeEditorShortcut::CtrlLeftBracket => self.outdent(event, textarea_ref, set_code),
+            CodeEditorShortcut::CtrlRightBracket => self.indent(event, textarea_ref, set_code),
+            CodeEditorShortcut::CtrlX => self.cut_or_remove_line(event, textarea_ref, set_code),
+            CodeEditorShortcut::AltDownArrow => self.move_line_down(event, textarea_ref, set_code),
+            CodeEditorShortcut::AltUpArrow => self.move_line_up(event, textarea_ref, set_code),
+            CodeEditorShortcut::Other => {}
+        }
+    }
+
+    fn tab(
+        &self,
+        event: web_sys::KeyboardEvent,
+        textarea_code_ref: &NodeRef<leptos::html::Textarea>,
+        set_code: &WriteSignal<String>,
+    ) {
+        event.prevent_default();
+        with_textarea(textarea_code_ref, |textarea, start, _end, value| {
+            let mut new_value = value.clone();
+            new_value.insert(start, '\t');
+            set_code.set(new_value.clone());
+            textarea.set_value(&new_value);
+            textarea
+                .set_selection_range((start + 1) as u32, (start + 1) as u32)
+                .unwrap();
+        });
+    }
+
+    fn indent(
+        &self,
+        event: web_sys::KeyboardEvent,
+        textarea_code_ref: &NodeRef<leptos::html::Textarea>,
+        set_code: &WriteSignal<String>,
+    ) {
+        event.prevent_default();
+        with_textarea(textarea_code_ref, |textarea, start, _end, value| {
+            let line_start = value[..start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+
+            let mut new_value = value.clone();
+            new_value.insert(line_start, '\t');
+
+            let new_start = start + 1;
+            let new_end = _end + 1;
+
+            set_code.set(new_value.clone());
+            textarea.set_value(&new_value);
+            textarea
+                .set_selection_range(new_start as u32, new_end as u32)
+                .unwrap();
+        });
+    }
+
+    fn outdent(
+        &self,
+        event: web_sys::KeyboardEvent,
+        textarea_code_ref: &NodeRef<leptos::html::Textarea>,
+        set_code: &WriteSignal<String>,
+    ) {
+        event.prevent_default();
+        with_textarea(textarea_code_ref, |textarea, start, end, value| {
+            let line_start = value[..start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+            let line = &value[line_start..start];
+
+            let mut removed = 0;
+            let mut new_value = value.clone();
+
+            if line.starts_with('\t') {
+                new_value.replace_range(line_start..line_start + 1, "");
+                removed = 1;
+            } else {
+                let spaces = line.chars().take_while(|&c| c == ' ').count().min(4);
+                if spaces > 0 {
+                    new_value.replace_range(line_start..line_start + spaces, "");
+                    removed = spaces;
+                }
+            }
+
+            if removed > 0 {
+                set_code.set(new_value.clone());
+                textarea.set_value(&new_value);
+                let new_start = start.saturating_sub(removed);
+                let new_end = end.saturating_sub(removed);
+                textarea
+                    .set_selection_range(new_start as u32, new_end as u32)
+                    .unwrap();
+            }
+        });
+    }
+
+    fn cut_or_remove_line(
+        &self,
+        event: web_sys::KeyboardEvent,
+        textarea_code_ref: &NodeRef<leptos::html::Textarea>,
+        set_code: &WriteSignal<String>,
+    ) {
+        with_textarea(textarea_code_ref, |textarea, start, end, value| {
+            event.prevent_default();
+            let mut new_value = value.clone();
+
+            if start != end {
+                new_value.replace_range(start..end, "");
+                set_code.set(new_value.clone());
+                textarea.set_value(&new_value);
+                textarea
+                    .set_selection_range(start as u32, start as u32)
+                    .unwrap();
+            } else {
+                let line_start = value[..start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+                let line_end = value[start..].find('\n').map_or(value.len(), |i| start + i);
+
+                let mut remove_end = line_end;
+                if remove_end < value.len() && value.as_bytes()[remove_end] == b'\n' {
+                    remove_end += 1;
+                }
+                new_value.replace_range(line_start..remove_end, "");
+
+                let new_pos = line_start.min(new_value.len());
+                set_code.set(new_value.clone());
+                textarea.set_value(&new_value);
+                textarea
+                    .set_selection_range(new_pos as u32, new_pos as u32)
+                    .unwrap();
+            }
+        });
+    }
+
+    fn move_line_down(
+        &self,
+        event: web_sys::KeyboardEvent,
+        textarea_code_ref: &NodeRef<leptos::html::Textarea>,
+        set_code: &WriteSignal<String>,
+    ) {
+        event.prevent_default();
+        with_textarea(textarea_code_ref, |textarea, start, _end, value| {
+            let line_start = value[..start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+            let line_end = value[start..].find('\n').map_or(value.len(), |i| start + i);
+
+            if line_end < value.len() {
+                let next_line_start = line_end + 1;
+                let next_line_end = value[next_line_start..]
+                    .find('\n')
+                    .map_or(value.len(), |i| next_line_start + i);
+                let current_line = &value[line_start..line_end];
+                let next_line = &value[next_line_start..next_line_end];
+
+                let mut new_value = value.clone();
+                new_value.replace_range(line_start..next_line_end, "");
+                new_value.insert_str(line_start, &format!("{next_line}\n{current_line}"));
+
+                set_code.set(new_value.clone());
+                textarea.set_value(&new_value);
+
+                let column = start - line_start;
+                let new_line_start = line_start + next_line.len() + 1;
+                let new_cursor = new_line_start + column.min(current_line.len());
+
+                textarea
+                    .set_selection_range(new_cursor as u32, new_cursor as u32)
+                    .unwrap();
+            }
+        });
+    }
+
+    fn move_line_up(
+        &self,
+        event: web_sys::KeyboardEvent,
+        textarea_code_ref: &NodeRef<leptos::html::Textarea>,
+        set_code: &WriteSignal<String>,
+    ) {
+        event.prevent_default();
+        with_textarea(textarea_code_ref, |textarea, start, _end, value| {
+            let line_start = value[..start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+            let line_end = value[start..].find('\n').map_or(value.len(), |i| start + i);
+
+            if line_start > 0 {
+                let prev_line_start = value[..line_start - 1]
+                    .rfind('\n')
+                    .map(|i| i + 1)
+                    .unwrap_or(0);
+                let prev_line_end = line_start - 1;
+                let prev_line = &value[prev_line_start..prev_line_end];
+                let current_line = &value[line_start..line_end];
+
+                let mut new_value = value.clone();
+                new_value.replace_range(prev_line_start..line_end, "");
+                new_value.insert_str(prev_line_start, &format!("{current_line}\n{prev_line}"));
+
+                set_code.set(new_value.clone());
+                textarea.set_value(&new_value);
+
+                let column = start - line_start;
+                let new_line_start = prev_line_start;
+                let new_cursor = new_line_start + column.min(current_line.len());
+
+                textarea
+                    .set_selection_range(new_cursor as u32, new_cursor as u32)
+                    .unwrap();
+            }
+        });
+    }
+}
+
+impl From<web_sys::KeyboardEvent> for CodeEditorShortcut {
+    fn from(event: web_sys::KeyboardEvent) -> Self {
+        const SHIFT: bool = true;
+        const NO_SHIFT: bool = false;
+        const CTRL: bool = true;
+        const NO_CTRL: bool = false;
+        const ALT: bool = true;
+        const NO_ALT: bool = false;
+
+        match (
+            event.ctrl_key(),
+            event.alt_key(),
+            event.shift_key(),
+            event.key().as_str(),
+        ) {
+            (NO_CTRL, NO_ALT, NO_SHIFT, "Tab") => CodeEditorShortcut::Tab,
+            (NO_CTRL, NO_ALT, SHIFT, "Tab") => CodeEditorShortcut::ShiftTab,
+            (CTRL, NO_ALT, NO_SHIFT, "[") => CodeEditorShortcut::CtrlLeftBracket,
+            (CTRL, NO_ALT, NO_SHIFT, "]") => CodeEditorShortcut::CtrlRightBracket,
+            (CTRL, NO_ALT, NO_SHIFT, "x") => CodeEditorShortcut::CtrlX,
+            (NO_CTRL, ALT, NO_SHIFT, "ArrowDown") => CodeEditorShortcut::AltDownArrow,
+            (NO_CTRL, ALT, NO_SHIFT, "ArrowUp") => CodeEditorShortcut::AltUpArrow,
+            _ => CodeEditorShortcut::Other,
+        }
+    }
+}
+
+fn with_textarea<Function: FnOnce(web_sys::HtmlTextAreaElement, usize, usize, String)>(
+    textarea_ref: &NodeRef<leptos::html::Textarea>,
+    function: Function,
+) {
+    let textarea = textarea_ref.get().unwrap();
+    let start = textarea.selection_start().unwrap_or(Some(0)).unwrap_or(0) as usize;
+    let end = textarea.selection_end().unwrap_or(Some(0)).unwrap_or(0) as usize;
+    let value = textarea.value();
+    function(textarea, start, end, value);
 }
 
 #[cfg(test)]
