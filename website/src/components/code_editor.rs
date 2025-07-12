@@ -294,7 +294,7 @@ impl CodeEditorShortcut {
             CodeEditorShortcut::ShiftTab => self.outdent(event, textarea_ref, set_code),
             CodeEditorShortcut::CtrlLeftBracket => self.outdent(event, textarea_ref, set_code),
             CodeEditorShortcut::CtrlRightBracket => self.indent(event, textarea_ref, set_code),
-            CodeEditorShortcut::CtrlX => self.remove_line(event, textarea_ref, set_code),
+            CodeEditorShortcut::CtrlX => self.cut_or_remove_line(event, textarea_ref, set_code),
             CodeEditorShortcut::AltDownArrow => self.move_line_down(event, textarea_ref, set_code),
             CodeEditorShortcut::AltUpArrow => self.move_line_up(event, textarea_ref, set_code),
             CodeEditorShortcut::Other => {}
@@ -380,31 +380,40 @@ impl CodeEditorShortcut {
         });
     }
 
-    fn remove_line(
+    fn cut_or_remove_line(
         &self,
         event: web_sys::KeyboardEvent,
         textarea_code_ref: &NodeRef<leptos::html::Textarea>,
         set_code: &WriteSignal<String>,
     ) {
-        with_textarea(textarea_code_ref, |textarea, start, _end, value| {
+        with_textarea(textarea_code_ref, |textarea, start, end, value| {
             event.prevent_default();
             let mut new_value = value.clone();
 
-            let line_start = value[..start].rfind('\n').map(|i| i + 1).unwrap_or(0);
-            let line_end = value[start..].find('\n').map_or(value.len(), |i| start + i);
+            if start != end {
+                new_value.replace_range(start..end, "");
+                set_code.set(new_value.clone());
+                textarea.set_value(&new_value);
+                textarea
+                    .set_selection_range(start as u32, start as u32)
+                    .unwrap();
+            } else {
+                let line_start = value[..start].rfind('\n').map(|i| i + 1).unwrap_or(0);
+                let line_end = value[start..].find('\n').map_or(value.len(), |i| start + i);
 
-            let mut remove_end = line_end;
-            if remove_end < value.len() && value.as_bytes()[remove_end] == b'\n' {
-                remove_end += 1;
+                let mut remove_end = line_end;
+                if remove_end < value.len() && value.as_bytes()[remove_end] == b'\n' {
+                    remove_end += 1;
+                }
+                new_value.replace_range(line_start..remove_end, "");
+
+                let new_pos = line_start.min(new_value.len());
+                set_code.set(new_value.clone());
+                textarea.set_value(&new_value);
+                textarea
+                    .set_selection_range(new_pos as u32, new_pos as u32)
+                    .unwrap();
             }
-            new_value.replace_range(line_start..remove_end, "");
-
-            let new_pos = line_start.min(new_value.len());
-            set_code.set(new_value.clone());
-            textarea.set_value(&new_value);
-            textarea
-                .set_selection_range(new_pos as u32, new_pos as u32)
-                .unwrap();
         });
     }
 
