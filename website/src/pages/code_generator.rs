@@ -5,6 +5,8 @@ use crate::components::text::TextWithAnimatedGradient;
 
 #[component]
 pub fn CodeGenerator() -> impl IntoView {
+    let (code, set_code) = signal(String::new());
+
     view! {
         <div class="center">
             <h2><TextWithAnimatedGradient text="meksmith.rs" /> " code generator"</h2>
@@ -22,8 +24,8 @@ pub fn CodeGenerator() -> impl IntoView {
                     disabled: true,
                 }
                 extra_section_classes="w-1600"
-                // TODO: once an examples page is ready, change the generator to start with empty string
-                meklang_code=String::from(include_str!("../../../meksmith/examples/ecpri.mek"))
+                code
+                set_code
             />
         </div>
     }

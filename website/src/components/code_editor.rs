@@ -216,9 +216,9 @@ pub fn CodeEditorWithOutput(
     input_code_editor_options: CodeEditorOptions,
     output_code_editor_options: CodeEditorOptions,
     extra_section_classes: &'static str,
-    meklang_code: String,
+    #[prop(into)] code: ReadSignal<String>,
+    #[prop(into)] set_code: WriteSignal<String>,
 ) -> impl IntoView {
-    let (code, set_code) = signal(meklang_code);
     let (parsed_code, set_parsed_code) = signal(String::new());
     let (parsing_error, set_parsing_error) = signal(String::new());
 

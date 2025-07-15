@@ -20,6 +20,8 @@ struct MyStruct {
 "#
     .to_string();
 
+    let (code, set_code) = signal(example_code.clone());
+
     view! {
         <div class="hero">
             <h1>
@@ -65,7 +67,8 @@ struct MyStruct {
                     disabled: true,
                 }
                 extra_section_classes="w-800"
-                meklang_code=example_code
+                code
+                set_code
             />
             <section class="w-800">
                 <h2>"Are you interested in using " <TextWithAnimatedGradient text="meksmith.rs" /> "?"</h2>

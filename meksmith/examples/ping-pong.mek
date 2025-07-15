@@ -1,0 +1,45 @@
+# A small protocol that can be used to ping devices through some
+# "master node" in local network (such as Docker) to verify their
+# availabilty and current uptime.
+# It is surely overcomplicated, but shows the usage of structures,
+# enumerations, unions and type definitions.
+
+using IpAddress = byte[4];
+using DeviceName = byte[32];
+
+struct Ping {
+    device_ip: IpAddress;
+    device_port: uint16;
+    sequence_number: uint32;
+};
+
+enum DeviceStatus {
+    reserved =              0b0000;
+    up =                    0b0001;
+    up_but_overloaded =     0b0010;
+    up_but_network_issues = 0b0011;
+    unavailable =           0b0100;
+    reserved =              0b0101..0b1111;
+};
+
+struct Pong {
+    sequence_number: uint32;
+    device_name: DeviceName;
+    uptime_in_seconds: uint32;
+    [bits=4] status: DeviceStatus;
+};
+
+enum MessageType {
+    ping = 0;
+    pong = 1;
+};
+
+union PingPong {
+    0 => ping: Ping;
+    1 => pong: Pong;
+};
+
+struct Message {
+    [bits=1] message_type: MessageType;
+    [discriminated_by=message_type] message: PingPong;
+};

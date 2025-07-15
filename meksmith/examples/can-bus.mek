@@ -1,0 +1,18 @@
+# Definition of CAN Bus based on the Wikipedia CAN bus page, it can
+# be found here: https://en.wikipedia.org/wiki/CAN_bus#Base_frame_format
+
+struct CANFrame {
+    [bits=1] start_of_frame: bit;
+    [bits=11] identifier: uint16;
+    [bits=1] remote_transmission_request: bit;
+    [bits=1] identifier_extension_bit: bit;
+    [bits=1] reserved: bit;
+    [bits=4] data_length_code: uint8;
+    data_field: uint8[8];
+    [bits=15] cyclic_redundancy_check: uint16;
+    [bits=1] cyclic_redundancy_delimiter: bit;
+    [bits=1] ack_slot: bit;
+    [bits=1] ack_delimiter: bit;
+    [bits=7] end_of_frame: uint8;
+    [bits=3] inter_frame_spacing: uint8;
+};
