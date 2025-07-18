@@ -83,20 +83,15 @@ jobs:
       - name: Build project
         run: trunk build --release --public-url /
 
-      - name: List files in website/dist before .htaccess copy
-        run: ls -al dist
-
       - name: Copy .htaccess to dist
         run: cp .htaccess dist/.htaccess
-
-      - name: List files in website/dist after .htaccess copy
-        run: ls -al dist
 
       - name: Upload website/dist artifact
         uses: actions/upload-artifact@v4
         with:
           name: website-dist
           path: website/dist
+          include-hidden-files: true
 
   deploy:
     name: deploy website to OVH
