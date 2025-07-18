@@ -91,6 +91,7 @@ jobs:
         with:
           name: website-dist
           path: website/dist
+          include-hidden-files: true
 
   deploy:
     name: deploy website to OVH
