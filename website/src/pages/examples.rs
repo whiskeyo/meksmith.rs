@@ -9,7 +9,7 @@ use crate::components::text::TextWithAnimatedGradient;
 /// embedded directly into the WASM code.
 macro_rules! include_example {
     ($name:literal) => {
-        include_str!(concat!("../../../meksmith/examples/", $name, ".mek"))
+        include_str!(concat!("../../../meksmith/examples/data/", $name, ".mek"))
     };
 }
 

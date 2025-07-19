@@ -200,12 +200,14 @@ pub fn generate_c_code(protocol: &Protocol) -> String {
 
 pub fn generate_c_code_from_string(input: &str) -> Result<String, String> {
     let protocol = crate::parse_protocol_to_ast(input)?;
-    Ok(generate_c_code(&protocol))
+    let sorted = crate::ast::sort_protocol_by_dependencies(&protocol)?;
+    Ok(generate_c_code(&sorted))
 }
 
 pub fn generate_from_file(file_path: &str) -> Result<String, String> {
     let protocol = crate::parse_protocol_from_file_to_ast(file_path)?;
-    Ok(generate_c_code(&protocol))
+    let sorted = crate::ast::sort_protocol_by_dependencies(&protocol)?;
+    Ok(generate_c_code(&sorted))
 }
 
 pub fn generate_from_file_to_file(
@@ -232,6 +234,7 @@ using DynamicArrayType = byte[];
 enum MyEnum {
     Value = 1;
     Range = 2..5;
+    RangeOneValue = 6..6;
 };
 
 using my_enum_alias_t = MyEnum;
@@ -242,6 +245,19 @@ struct MyStruct {
     field3: uint32[10];
     field4: byte[];
     field5: my_enum_alias_t;
+    field6: MyEnum[2];
+    builtin1: int8;
+    builtin2: int16;
+    builtin3: int32;
+    builtin4: int64;
+    builtin5: uint8;
+    builtin6: uint16;
+    builtin7: uint32;
+    builtin8: uint64;
+    builtin9: float32;
+    builtin10: float64;
+    builtin11: bit;
+    builtin12: byte;
 };
 
 union MyUnion {
@@ -250,6 +266,7 @@ union MyUnion {
     2 => field3: uint64[10];
     3 => field4: MyStruct;
     4..6 => reserved: uint16;
+    7..8 => static_array: uint16[10];
 };
 "#;
 
@@ -258,19 +275,20 @@ union MyUnion {
 
 typedef int32_t BuiltInType;
 
-typedef MyEnum UserDefinedType;
-
-typedef uint32_t StaticArrayType[10];
-
-typedef uint8_t* DynamicArrayType;
-
 typedef enum {
     MyEnum_Value = 1,
     MyEnum_Range_2 = 2,
     MyEnum_Range_3 = 3,
     MyEnum_Range_4 = 4,
     MyEnum_Range_5 = 5,
+    MyEnum_RangeOneValue = 6,
 } MyEnum;
+
+typedef MyEnum UserDefinedType;
+
+typedef uint32_t StaticArrayType[10];
+
+typedef uint8_t* DynamicArrayType;
 
 typedef MyEnum my_enum_alias_t;
 
@@ -280,6 +298,19 @@ typedef struct {
     uint32_t field3[10];
     uint8_t* field4;
     my_enum_alias_t field5;
+    MyEnum field6[2];
+    int8_t builtin1;
+    int16_t builtin2;
+    int32_t builtin3;
+    int64_t builtin4;
+    uint8_t builtin5;
+    uint16_t builtin6;
+    uint32_t builtin7;
+    uint64_t builtin8;
+    float builtin9;
+    double builtin10;
+    bool builtin11;
+    uint8_t builtin12;
 } MyStruct;
 
 typedef union {
@@ -290,9 +321,18 @@ typedef union {
     uint16_t reserved_4;
     uint16_t reserved_5;
     uint16_t reserved_6;
+    uint16_t static_array_7[10];
+    uint16_t static_array_8[10];
 } MyUnion;
 
 "#;
+
+    #[test]
+    fn test_generate_c_code_from_string() {
+        let input = INPUT_FILE_CONTENT;
+        let output = generate_c_code_from_string(input).unwrap();
+        assert_eq!(output, EXPECTED_C_OUTPUT);
+    }
 
     #[test]
     fn test_generate_from_file() {
