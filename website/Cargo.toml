@@ -6,9 +6,9 @@ edition = "2024"
 [dependencies]
 meksmith = { path = "../meksmith" }
 
-leptos = { version = "0.8.2", features = ["csr"] }
-leptos_router = "0.8.2"
-console_error_panic_hook = "0.1.7"
-web-sys = "0.3.77"
-regex-lite = "0.1.6"
-once_cell = "1.21.3"
+leptos = { workspace = true, features = ["csr"] }
+leptos_router = { workspace = true }
+console_error_panic_hook = { workspace = true }
+web-sys = { workspace = true }
+regex-lite = { workspace = true, default-features = true }
+once_cell = { workspace = true }
