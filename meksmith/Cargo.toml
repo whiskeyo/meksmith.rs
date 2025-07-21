@@ -5,11 +5,11 @@ edition = "2024"
 repository = "https://github.com/whiskeyo/meksmith.rs"
 
 [dependencies]
-chumsky = "0.10.1"
+chumsky = { workspace = true, default-features = false }
 
 [dev-dependencies]
-tempfile = "3.20.0"
-rstest = "0.25.0"
+tempfile = { workspace = true, default-features = true }
+rstest = { workspace = true, default-features = true }
 
 [[example]]
 name = "c_generator"
