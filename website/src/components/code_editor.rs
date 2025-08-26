@@ -181,10 +181,10 @@ pub fn CodeEditor(
     let language_highlighter_for_effect = language_highlighter.clone();
     Effect::new({
         move |_| {
-            if let Some(textarea) = textarea_code_ref.get() {
-                if textarea.value() != code.get() {
-                    textarea.set_value(&code.get());
-                }
+            if let Some(textarea) = textarea_code_ref.get()
+                && textarea.value() != code.get()
+            {
+                textarea.set_value(&code.get());
             }
 
             if let Some(pre) = pre_parsed_code_ref.get() {

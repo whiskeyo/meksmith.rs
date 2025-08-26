@@ -233,16 +233,16 @@ pub(crate) fn sort_protocol_by_dependencies(protocol: &Protocol) -> Result<Proto
                 }
             }
             Definition::Type(type_def) => {
-                if let Some(type_name) = extract_custom_type_identifier_name(&type_def.r#type) {
-                    if let Some(type_def_ref) = definitions_map.get(&type_name) {
-                        visit(
-                            type_def_ref,
-                            visited,
-                            temp_mark,
-                            sorted_definitions,
-                            definitions_map,
-                        )?;
-                    }
+                if let Some(type_name) = extract_custom_type_identifier_name(&type_def.r#type)
+                    && let Some(type_def_ref) = definitions_map.get(&type_name)
+                {
+                    visit(
+                        type_def_ref,
+                        visited,
+                        temp_mark,
+                        sorted_definitions,
+                        definitions_map,
+                    )?;
                 }
             }
         }
