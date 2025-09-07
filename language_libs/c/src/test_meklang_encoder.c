@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #define TERM_RED     "\033[31m"
 #define TERM_GREEN   "\033[32m"
@@ -41,7 +42,7 @@ void test_meksmith_encode_aligned_bytes(
     tests_count++;
 
     const char* endianness_str = endianness == MEKSMITH_ENCODING_LITTLE_ENDIAN ? "little-endian" : "big-endian";
-    printf("%sTest (test_meksmith_encode_aligned_bytes): buffer size: %zu, value: %lu (0x%016lX), byte offset: %zu, byte count: %zu, endianness: %s%s\n",
+    printf("%sTest (test_meksmith_encode_aligned_bytes): buffer size: %zu, value: %" PRIu64 " (0x%016" PRIX64 "), byte offset: %zu, byte count: %zu, endianness: %s%s\n",
         TERM_YELLOW, buffer_size, value, value, byte_offset, byte_count, endianness_str, TERM_CANCEL);
 
     meksmith_print_buffer("\tExpected buffer: ", expected_buffer, buffer_size);
@@ -99,10 +100,10 @@ void test_meksmith_decode_aligned_bytes(
         TERM_YELLOW, buffer_size, byte_offset, byte_count, endianness_str, TERM_CANCEL);
 
     meksmith_print_buffer("\tBuffer: ", buffer, buffer_size);
-    printf("\tExpected value: %lu (0x%016lX)\n", expected_value, expected_value);
+    printf("\tExpected value: %" PRIu64 " (0x%016" PRIX64 ")\n", expected_value, expected_value);
 
     uint64_t value = meksmith_decode_aligned_bytes(buffer, buffer_size, byte_offset, byte_count, endianness);
-    printf("\tDecoded value:  %lu (0x%016lX)\n", value, value);
+    printf("\tDecoded value:  %" PRIu64 " (0x%016" PRIX64 ")\n", value, value);
 
     if (value == expected_value) {
         printf("\t%sSuccess: both values are equal%s\n", TERM_GREEN, TERM_CANCEL);
@@ -154,7 +155,7 @@ void test_encoding_decoding_aligned_bytes(
     tests_count++;
 
     const char* endianness_str = endianness == MEKSMITH_ENCODING_LITTLE_ENDIAN ? "little-endian" : "big-endian";
-    printf("%sTest (test_encoding_decoding_aligned_bytes): buffer size: %zu, value: %lu (0x%016lX), byte offset: %zu, byte count: %zu, endianness: %s%s\n",
+    printf("%sTest (test_encoding_decoding_aligned_bytes): buffer size: %zu, value: %" PRIu64 " (0x%016" PRIX64 "), byte offset: %zu, byte count: %zu, endianness: %s%s\n",
         TERM_YELLOW, buffer_size, value, value, byte_offset, byte_count, endianness_str, TERM_CANCEL);
     meksmith_print_buffer("\tExpected buffer: ", expected_buffer, buffer_size);
 
@@ -166,14 +167,14 @@ void test_encoding_decoding_aligned_bytes(
     meksmith_encode_aligned_bytes(buffer, buffer_size, byte_offset, value, byte_count, endianness);
     meksmith_print_buffer("\tBuffer: ", buffer, buffer_size);
     uint64_t extracted_value = meksmith_decode_aligned_bytes(buffer, buffer_size, byte_offset, byte_count, endianness);
-    printf("\tComparing original value: %lu (0x%016lX) with extracted value: %lu (0x%016lX)\n",
+    printf("\tComparing original value: %" PRIu64 " (0x%016" PRIX64 ") with extracted value: %" PRIu64 " (0x%016" PRIX64 ")\n",
         value, value, extracted_value, extracted_value);
     if (extracted_value == value) {
-        printf("\t%sSuccess: extracted value: %lu (0x%016lX) matches original value: %lu (0x%016lX)%s\n",
+        printf("\t%sSuccess: extracted value: %" PRIu64 " (0x%016" PRIX64 ") matches original value: %" PRIu64 " (0x%016" PRIX64 ")%s\n",
             TERM_GREEN, extracted_value, extracted_value, value, value, TERM_CANCEL);
         tests_passed++;
     } else {
-        printf("\t%sFailure: extracted value: %lu (0x%016lX) does not match original value: %lu (0x%016lX)%s\n",
+        printf("\t%sFailure: extracted value: %" PRIu64 " (0x%016" PRIX64 ") does not match original value: %" PRIu64 " (0x%016" PRIX64 ")%s\n",
             TERM_RED, extracted_value, extracted_value, value, value, TERM_CANCEL);
         tests_failed++;
     }
