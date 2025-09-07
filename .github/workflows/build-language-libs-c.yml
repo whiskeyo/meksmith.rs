@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build & Test (${{ matrix.os }} - ${{ matrix.compiler }})
+    name: meksmith.rs language libs - C (${{ matrix.os }} - ${{ matrix.compiler }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -62,8 +62,8 @@ jobs:
 
       - name: Run tests (Linux/macOS)
         if: matrix.os != 'windows-latest'
-        run: ./language_libs/c/build/test_meklang_encoder
+        run: ./language_libs/c/build/test_meksmith
 
       - name: Run tests (Windows)
         if: matrix.os == 'windows-latest'
-        run: language_libs\c\build\Release\test_meklang_encoder.exe
+        run: language_libs\c\build\Release\test_meksmith.exe
