@@ -36,7 +36,7 @@ jobs:
 
       - name: Set up Clang
         if: matrix.compiler == 'clang'
-        uses: llvm/actions/setup-clang@v18
+        uses: actions/setup-clang@v1
 
       - name: Set up MSVC
         if: matrix.compiler == 'msvc' && matrix.os == 'windows-latest'
