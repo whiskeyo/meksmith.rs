@@ -1,5 +1,6 @@
 #include "meklang_util.h"
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <inttypes.h>
@@ -47,7 +48,12 @@ void test_meksmith_encode_aligned_bytes(
 
     meksmith_print_buffer("\tExpected buffer: ", expected_buffer, buffer_size);
 
-    uint8_t buffer[buffer_size];
+    uint8_t* buffer = (uint8_t*)malloc(buffer_size);
+    if (!buffer) {
+        printf("%sError: malloc failed%s\n", TERM_RED, TERM_CANCEL);
+        tests_failed++;
+        return;
+    }
     for (size_t i = 0; i < buffer_size; i++) {
         buffer[i] = 0;
     }
@@ -63,6 +69,7 @@ void test_meksmith_encode_aligned_bytes(
         printf("\t%sFailure: buffers are not equal%s\n", TERM_RED, TERM_CANCEL);
         tests_failed++;
     }
+    free(buffer);
 }
 
 void test_little_endian_encoding() {
@@ -159,7 +166,12 @@ void test_encoding_decoding_aligned_bytes(
         TERM_YELLOW, buffer_size, value, value, byte_offset, byte_count, endianness_str, TERM_CANCEL);
     meksmith_print_buffer("\tExpected buffer: ", expected_buffer, buffer_size);
 
-    uint8_t buffer[buffer_size];
+    uint8_t* buffer = (uint8_t*)malloc(buffer_size);
+    if (!buffer) {
+        printf("%sError: malloc failed%s\n", TERM_RED, TERM_CANCEL);
+        tests_failed++;
+        return;
+    }
     for (size_t i = 0; i < buffer_size; i++) {
         buffer[i] = 0;
     }
@@ -178,6 +190,7 @@ void test_encoding_decoding_aligned_bytes(
             TERM_RED, extracted_value, extracted_value, value, value, TERM_CANCEL);
         tests_failed++;
     }
+    free(buffer);
 }
 
 void test_little_endian_encoding_decoding() {
