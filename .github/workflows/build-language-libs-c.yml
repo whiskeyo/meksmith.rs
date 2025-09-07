@@ -3,8 +3,10 @@ name: meksmith.rs language libs - C workflow
 on:
   push:
     branches: ["master"]
+    paths: ["language_libs/c/**", ".github/workflows/build-language-libs-c.yml"]
   pull_request:
     branches: ["master"]
+    paths: ["language_libs/c/**", ".github/workflows/build-language-libs-c.yml"]
 
 jobs:
   build:
