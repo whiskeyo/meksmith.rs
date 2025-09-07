@@ -58,7 +58,7 @@ jobs:
         run: cmake -S language_libs/c -B language_libs/c/build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build tests
-        run: cmake --build build
+        run: cmake --build language_libs/c/build
 
       - name: Run tests
         run: ./language_libs/c/build/test_meklang_encoder
