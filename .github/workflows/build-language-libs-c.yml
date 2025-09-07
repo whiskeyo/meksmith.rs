@@ -58,7 +58,7 @@ jobs:
         run: cmake -S language_libs/c -B language_libs/c/build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build tests
-        run: cmake --build language_libs/c/build
+        run: cmake --build language_libs/c/build --config Release
 
       - name: Run tests (Linux/macOS)
         if: matrix.os != 'windows-latest'
@@ -66,5 +66,4 @@ jobs:
 
       - name: Run tests (Windows)
         if: matrix.os == 'windows-latest'
-        run: ./language_libs/c/build/test_meklang_encoder.exe
-        shell: cmd
+        run: language_libs\c\build\Release\test_meklang_encoder.exe
