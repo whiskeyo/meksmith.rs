@@ -7,46 +7,58 @@ on:
     branches: ["master"]
 
 jobs:
-  build-c-libs:
-    name: Build C language libs
+  build:
+    name: Build & Test (${{ matrix.os }} - ${{ matrix.compiler }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        compiler:
-          - gcc
-          - clang
-          - msvc
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        compiler: [gcc, clang, msvc]
         exclude:
           - os: windows-latest
             compiler: gcc
           - os: windows-latest
             compiler: clang
           - os: macos-latest
+            compiler: gcc
+          - os: macos-latest
             compiler: msvc
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up GCC
-        if: matrix.compiler == 'gcc'
-        uses: egor-tensin/setup-gcc@v1
-        with:
-          version: latest
+      - name: Set up compilers (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            sudo apt-get install -y gcc g++
+            export CC=gcc
+            export CXX=g++
+          elif [ "${{ matrix.compiler }}" = "clang" ]; then
+            sudo apt-get install -y clang
+            export CC=clang
+            export CXX=clang++
+          fi
+        shell: bash
 
-      - name: Set up Clang
-        if: matrix.compiler == 'clang'
-        uses: actions/setup-clang@v1
+      - name: Set up compilers (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          export CC=clang
+          export CXX=clang++
 
-      - name: Set up MSVC
-        if: matrix.compiler == 'msvc' && matrix.os == 'windows-latest'
+      - name: Set up compilers (Windows / MSVC)
+        if: matrix.os == 'windows-latest' && matrix.compiler == 'msvc'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install CMake
-        uses: jwlawson/actions-setup-cmake@v2
-
       - name: Configure with CMake
-        run: cmake -S language_libs/c -B language_libs/c/build -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+        run: cmake -S language_libs/c -B language_libs/c/build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build with CMake
-        run: cmake --build language_libs/c/build
+      - name: Build tests
+        run: cmake --build build
+
+      - name: Run tests
+        run: ./language_libs/c/build/test_meklang_encoder
