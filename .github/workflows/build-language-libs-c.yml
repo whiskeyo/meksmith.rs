@@ -66,4 +66,4 @@ jobs:
 
       - name: Run tests (Windows)
         if: matrix.os == 'windows-latest'
-        run: language_libs/c/build/test_meklang_encoder.exe
+        run: ./language_libs/c/build/test_meklang_encoder.exe
