@@ -1,0 +1,52 @@
+name: meksmith.rs language libs - C workflow
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  build-c-libs:
+    name: Build C language libs
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        compiler:
+          - gcc
+          - clang
+          - msvc
+        exclude:
+          - os: windows-latest
+            compiler: gcc
+          - os: windows-latest
+            compiler: clang
+          - os: macos-latest
+            compiler: msvc
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up GCC
+        if: matrix.compiler == 'gcc'
+        uses: egor-tensin/setup-gcc@v1
+        with:
+          version: latest
+
+      - name: Set up Clang
+        if: matrix.compiler == 'clang'
+        uses: llvm/actions/setup-clang@v21
+
+      - name: Set up MSVC
+        if: matrix.compiler == 'msvc' && matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v2
+
+      - name: Configure with CMake
+        run: cmake -S language_libs/c -B language_libs/c/build -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+
+      - name: Build with CMake
+        run: cmake --build language_libs/c/build
