@@ -15,7 +15,7 @@ regex-lite = { version = "0.1.7", default-features = false }
 once_cell = { version = "1.21.3", default-features = false }
 
 # test dependencies, waiting for [workspace.dev-dependencies] support
-tempfile = { version = "3.22.0", default-features = false }
+tempfile = { version = "3.23.0", default-features = false }
 rstest = { version = "0.25.0", default-features = false }
 
 [profile.release]
