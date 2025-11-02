@@ -87,7 +87,7 @@ jobs:
         run: cp .htaccess dist/.htaccess
 
       - name: Upload website/dist artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: website-dist
           path: website/dist
@@ -106,7 +106,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download website/dist artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: website-dist
           path: website/dist
