@@ -16,7 +16,7 @@ once_cell = { version = "1.21.3", default-features = false }
 
 # test dependencies, waiting for [workspace.dev-dependencies] support
 tempfile = { version = "3.23.0", default-features = false }
-rstest = { version = "0.25.0", default-features = false }
+rstest = { version = "0.26.1", default-features = false }
 
 [profile.release]
 opt-level = 'z'
