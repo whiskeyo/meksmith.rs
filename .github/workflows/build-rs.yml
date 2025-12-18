@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust + extra components
         uses: dtolnay/rust-toolchain@master
@@ -47,7 +47,7 @@ jobs:
     needs: check
     steps:
       - name: Clone repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust + extra components
         uses: dtolnay/rust-toolchain@master
@@ -67,7 +67,7 @@ jobs:
         working-directory: website
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -103,7 +103,7 @@ jobs:
         working-directory: website
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download website/dist artifact
         uses: actions/download-artifact@v7
