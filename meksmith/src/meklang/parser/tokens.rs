@@ -1,0 +1,9 @@
+pub(crate) const LBRACE: &str = "{";
+pub(crate) const RBRACE: &str = "}";
+pub(crate) const LBRACKET: &str = "[";
+pub(crate) const RBRACKET: &str = "]";
+pub(crate) const EQUALS: &str = "=";
+pub(crate) const COMMA: &str = ",";
+pub(crate) const COLON: &str = ":";
+pub(crate) const DOUBLE_DOT: &str = "..";
+pub(crate) const MAPS_TO: &str = "=>";

@@ -1,3 +1,5 @@
+pub mod meklang;
+
 mod ast;
 mod parser;
 pub mod smith_c;
