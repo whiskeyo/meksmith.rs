@@ -78,11 +78,20 @@ pub struct Enumeration {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct UnionField {
-    pub name: Identifier,
-    pub typ: Type,
-    pub discriminator: usize,
-    pub attributes: Vec<Attribute>,
+pub enum UnionField {
+    SingleValue {
+        name: Identifier,
+        typ: Type,
+        discriminator: usize,
+        attributes: Vec<Attribute>,
+    },
+    RangeOfValues {
+        name: Identifier,
+        typ: Type,
+        discriminator_from: usize,
+        discriminator_to: usize,
+        attributes: Vec<Attribute>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

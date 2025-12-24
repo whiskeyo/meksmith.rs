@@ -87,19 +87,19 @@ mod tests {
                 Definition::Union(Union {
                     name: Identifier::new("Union1"),
                     fields: vec![
-                        UnionField {
+                        UnionField::SingleValue {
                             name: Identifier::new("u1"),
                             typ: Type::Builtin(BuiltinType::UnsignedInteger64),
                             discriminator: 0,
                             attributes: vec![Attribute::Bits(49)],
                         },
-                        UnionField {
+                        UnionField::SingleValue {
                             name: Identifier::new("u2"),
                             typ: Type::UserDefined(Identifier::new("Enum2")),
                             discriminator: 1,
                             attributes: vec![],
                         },
-                        UnionField {
+                        UnionField::SingleValue {
                             name: Identifier::new("u3"),
                             typ: Type::UserDefined(Identifier::new("Struct1")),
                             discriminator: 2,
