@@ -1,4 +1,5 @@
 pub mod meklang;
+pub mod meklang2;
 
 mod ast;
 mod parser;
