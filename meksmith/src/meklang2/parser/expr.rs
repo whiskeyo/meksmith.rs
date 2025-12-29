@@ -5,14 +5,10 @@ use crate::meklang2::ErrType;
 use crate::meklang2::ast::Radix;
 use crate::meklang2::ast::{Identifier, NumericLiteral, Reference};
 use crate::meklang2::parser::ident::identifier;
-use crate::meklang2::parser::token::AND;
-use crate::meklang2::parser::token::EQUALS_TO;
-use crate::meklang2::parser::token::GREATER_EQUAL;
-use crate::meklang2::parser::token::GREATER_THAN;
-use crate::meklang2::parser::token::NOT;
-use crate::meklang2::parser::token::NOT_EQUAL;
-use crate::meklang2::parser::token::OR;
-use crate::meklang2::parser::token::{DOT, LESS_EQUAL, LESS_THAN};
+use crate::meklang2::parser::token::{
+    AND, DOT, EQUALS_TO, GREATER_EQUAL, GREATER_THAN, LESS_EQUAL, LESS_THAN, LPAREN, NOT,
+    NOT_EQUAL, OR, RPAREN,
+};
 
 // ***************************************
 // SECTION FOR EXPRESSIONS
@@ -104,92 +100,96 @@ fn reference<'src>() -> impl Parser<'src, &'src str, Reference, ErrType<'src>> {
 // END to be moved to ident.rs
 
 fn expr<'src>() -> impl Parser<'src, &'src str, Expr, ErrType<'src>> {
-    let atom = choice((
-        numeric_literal().map(Expr::NumericLiteral),
-        reference().map(Expr::Reference),
-    ));
+    recursive(|expr| {
+        let atom = choice((
+            numeric_literal().map(Expr::NumericLiteral).boxed(),
+            reference().map(Expr::Reference).boxed(),
+            expr.delimited_by(just(LPAREN).padded(), just(RPAREN).padded())
+                .boxed(),
+        ));
 
-    let operator = |op| just(op).padded();
+        let operator = |op| just(op).padded();
 
-    atom.pratt((
-        // comparison operators have the highest precedence,
-        // chaining is forbidden thus Associativity::None is used
-        infix(
-            Associativity::None(4),
-            operator(EQUALS_TO),
-            |lhs, _, rhs, _| Expr::BinaryOperator {
-                operator: BinaryOperator::Equals,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-        ),
-        infix(
-            Associativity::None(4),
-            operator(NOT_EQUAL),
-            |lhs, _, rhs, _| Expr::BinaryOperator {
-                operator: BinaryOperator::NotEquals,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-        ),
-        infix(
-            Associativity::None(4),
-            operator(LESS_THAN),
-            |lhs, _, rhs, _| Expr::BinaryOperator {
-                operator: BinaryOperator::LessThan,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-        ),
-        infix(
-            Associativity::None(4),
-            operator(LESS_EQUAL),
-            |lhs, _, rhs, _| Expr::BinaryOperator {
-                operator: BinaryOperator::LessEqual,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-        ),
-        infix(
-            Associativity::None(4),
-            operator(GREATER_THAN),
-            |lhs, _, rhs, _| Expr::BinaryOperator {
-                operator: BinaryOperator::GreaterThan,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-        ),
-        infix(
-            Associativity::None(4),
-            operator(GREATER_EQUAL),
-            |lhs, _, rhs, _| Expr::BinaryOperator {
-                operator: BinaryOperator::GreaterEqual,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-        ),
-        // negation has smaller precedence, it's prefix operator with right associativity
-        prefix(3, operator(NOT), |_, expr, _| Expr::UnaryOperator {
-            operator: UnaryOperator::Not,
-            expr: Box::new(expr),
-        }),
-        // and should be done after comparisons/negations, it's infix operator with left associativity
-        infix(Associativity::Left(2), operator(AND), |lhs, _, rhs, _| {
-            Expr::BinaryOperator {
-                operator: BinaryOperator::And,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            }
-        }),
-        // or comes at the end, similar to and
-        infix(Associativity::Left(1), operator(OR), |lhs, _, rhs, _| {
-            Expr::BinaryOperator {
-                operator: BinaryOperator::Or,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            }
-        }),
-    ))
+        atom.pratt((
+            // comparison operators have the highest precedence,
+            // chaining is forbidden thus Associativity::None is used
+            infix(
+                Associativity::None(4),
+                operator(EQUALS_TO),
+                |lhs, _, rhs, _| Expr::BinaryOperator {
+                    operator: BinaryOperator::Equals,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+            ),
+            infix(
+                Associativity::None(4),
+                operator(NOT_EQUAL),
+                |lhs, _, rhs, _| Expr::BinaryOperator {
+                    operator: BinaryOperator::NotEquals,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+            ),
+            infix(
+                Associativity::None(4),
+                operator(LESS_THAN),
+                |lhs, _, rhs, _| Expr::BinaryOperator {
+                    operator: BinaryOperator::LessThan,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+            ),
+            infix(
+                Associativity::None(4),
+                operator(LESS_EQUAL),
+                |lhs, _, rhs, _| Expr::BinaryOperator {
+                    operator: BinaryOperator::LessEqual,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+            ),
+            infix(
+                Associativity::None(4),
+                operator(GREATER_THAN),
+                |lhs, _, rhs, _| Expr::BinaryOperator {
+                    operator: BinaryOperator::GreaterThan,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+            ),
+            infix(
+                Associativity::None(4),
+                operator(GREATER_EQUAL),
+                |lhs, _, rhs, _| Expr::BinaryOperator {
+                    operator: BinaryOperator::GreaterEqual,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+            ),
+            // negation has smaller precedence, it's prefix operator with right associativity
+            prefix(3, operator(NOT), |_, expr, _| Expr::UnaryOperator {
+                operator: UnaryOperator::Not,
+                expr: Box::new(expr),
+            }),
+            // and should be done after comparisons/negations, it's infix operator with left associativity
+            infix(Associativity::Left(2), operator(AND), |lhs, _, rhs, _| {
+                Expr::BinaryOperator {
+                    operator: BinaryOperator::And,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+            }),
+            // or comes at the end, similar to and
+            infix(Associativity::Left(1), operator(OR), |lhs, _, rhs, _| {
+                Expr::BinaryOperator {
+                    operator: BinaryOperator::Or,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+            }),
+        ))
+    })
 }
 
 #[cfg(test)]
@@ -313,7 +313,108 @@ mod tests {
             rhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("b")] })),
         }
     )]
-    fn test_expr_base(#[case] input: &str, #[case] expected: Expr) {
+    #[case::parentheses_on_the_left(
+        "(a and b) and c",
+        Expr::BinaryOperator {
+            operator: BinaryOperator::And,
+            lhs: Box::new(
+                Expr::BinaryOperator {
+                    operator: BinaryOperator::And,
+                    lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("a")] })),
+                    rhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("b")] })),
+                }
+            ),
+            rhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("c")] })),
+        }
+    )]
+    #[case::parentheses_on_the_right(
+        "a and (b and c)",
+        Expr::BinaryOperator {
+            operator: BinaryOperator::And,
+            lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("a")] })),
+            rhs: Box::new(
+                Expr::BinaryOperator {
+                    operator: BinaryOperator::And,
+                    lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("b")] })),
+                    rhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("c")] })),
+                }
+            ),
+        }
+    )]
+    #[case::parentheses_nested_on_the_left(
+        "(((a and b) and c) or d)",
+        Expr::BinaryOperator {
+            operator: BinaryOperator::Or,
+            lhs: Box::new(
+                Expr::BinaryOperator {
+                    operator: BinaryOperator::And,
+                    lhs: Box::new(Expr::BinaryOperator {
+                        operator: BinaryOperator::And,
+                        lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("a")] })),
+                        rhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("b")] })),
+                    }),
+                    rhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("c")] })),
+                }
+            ),
+            rhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("d")] })),
+        }
+    )]
+    #[case::parentheses_nested_on_the_right(
+        "(a and (b and (c or d)))",
+        Expr::BinaryOperator {
+            operator: BinaryOperator::And,
+            lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("a")] })),
+            rhs: Box::new(
+                Expr::BinaryOperator {
+                    operator: BinaryOperator::And,
+                    lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("b")] })),
+                    rhs: Box::new(Expr::BinaryOperator {
+                        operator: BinaryOperator::Or,
+                        lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("c")] })),
+                        rhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("d")] })),
+                    }),
+                }
+            ),
+        }
+    )]
+    #[case::multiple_comparisons(
+        "not (a > 10 and a <= 20 or a == 30)",
+        Expr::UnaryOperator {
+            operator: UnaryOperator::Not,
+            expr: Box::new(
+                Expr::BinaryOperator {
+                    operator: BinaryOperator::Or,
+                    lhs: Box::new(
+                        Expr::BinaryOperator {
+                            operator: BinaryOperator::And,
+                            lhs: Box::new(
+                                Expr::BinaryOperator {
+                                    operator: BinaryOperator::GreaterThan,
+                                    lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("a")] })),
+                                    rhs: Box::new(Expr::NumericLiteral(NumericLiteral { value: 10, radix: Radix::Decimal }))
+                                }
+                            ),
+                            rhs: Box::new(
+                                Expr::BinaryOperator {
+                                    operator: BinaryOperator::LessEqual,
+                                    lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("a")] })),
+                                    rhs: Box::new(Expr::NumericLiteral(NumericLiteral { value: 20, radix: Radix::Decimal }))
+                                }
+                            ),
+                        }
+                    ),
+                    rhs: Box::new(
+                        Expr::BinaryOperator {
+                            operator: BinaryOperator::Equals,
+                            lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("a")] })),
+                            rhs: Box::new(Expr::NumericLiteral(NumericLiteral { value: 30, radix: Radix::Decimal }))
+                        }
+                    ),
+                }
+            ),
+        }
+    )]
+    fn test_expr(#[case] input: &str, #[case] expected: Expr) {
         let result = expr().parse(input);
         assert_eq!(result.into_output().unwrap(), expected);
     }
