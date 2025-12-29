@@ -5,7 +5,7 @@ edition = "2024"
 repository = "https://github.com/whiskeyo/meksmith.rs"
 
 [dependencies]
-chumsky = { workspace = true, default-features = false }
+chumsky = { workspace = true, features = ["pratt"] }
 
 [dev-dependencies]
 tempfile = { workspace = true, default-features = true }

@@ -6,6 +6,7 @@ pub(crate) const RBRACKET: &str = "]";
 pub(crate) const LPAREN: &str = "(";
 pub(crate) const RPAREN: &str = ")";
 pub(crate) const EQUALS: &str = "=";
+pub(crate) const DOT: &str = ".";
 pub(crate) const DOUBLE_DOT: &str = "..";
 pub(crate) const COMMA: &str = ",";
 pub(crate) const PLUS: &str = "+";
@@ -19,6 +20,7 @@ pub(crate) const LESS_EQUAL: &str = "<=";
 pub(crate) const GREATER_THAN: &str = ">";
 pub(crate) const GREATER_EQUAL: &str = ">=";
 pub(crate) const NOT_EQUAL: &str = "!=";
+pub(crate) const NOT: &str = "not";
 pub(crate) const AND: &str = "and";
 pub(crate) const OR: &str = "or";
 

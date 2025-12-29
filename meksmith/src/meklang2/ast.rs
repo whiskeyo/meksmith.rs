@@ -1,3 +1,20 @@
+// ***************************************
+// SECTION FOR ATOMS
+// ***************************************
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NumericLiteral {
+    pub value: u128,
+    pub radix: Radix,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Radix {
+    Decimal,
+    Hexadecimal,
+    Binary,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Identifier {
     pub name: String,
@@ -9,6 +26,11 @@ impl Identifier {
             name: name.to_string(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Reference {
+    pub path: Vec<Identifier>,
 }
 
 // ***************************************
