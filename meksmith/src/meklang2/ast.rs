@@ -169,3 +169,17 @@ pub struct BitStructFieldUnion {
     pub typ: BitStructFieldType,
     // maybe add attributes in future?
 }
+
+// ***************************************
+// SECTION FOR PROTOCOL & MODULES
+// ***************************************
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Module {
+    pub definitions: Vec<Definition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Definition {
+    Enum(BitEnum),
+    Struct(BitStruct),
+}
