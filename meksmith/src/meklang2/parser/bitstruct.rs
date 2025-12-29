@@ -85,7 +85,26 @@ pub(crate) fn bit_struct_field_type<'src>()
 }
 
 pub(crate) fn bit_struct<'src>() -> impl Parser<'src, &'src str, BitStruct, ErrType<'src>> {
-    chumsky::primitive::todo()
+    // bitstruct <name>(<bit_struct_bit_order>) {
+    //     <bit_struct_field>+
+    // }
+
+    just(BIT_STRUCT)
+        .padded()
+        .ignore_then(identifier())
+        .then(bit_struct_bit_order().delimited_by(just(LPAREN).padded(), just(RPAREN).padded()))
+        .then(
+            bit_struct_field()
+                .separated_by(just(COMMA).padded())
+                .at_least(1)
+                .collect()
+                .delimited_by(just(LBRACE).padded(), just(RBRACE).padded()),
+        )
+        .map(|((name, bit_order), fields)| BitStruct {
+            name,
+            bit_order,
+            fields,
+        })
 }
 
 pub(crate) fn bit_struct_bit_order<'src>()
@@ -126,7 +145,7 @@ pub(crate) fn bit_struct_field<'src>() -> impl Parser<'src, &'src str, BitStruct
             bit_struct_field_union()
                 .separated_by(just(COMMA).padded())
                 .at_least(1)
-                .collect::<Vec<BitStructFieldUnion>>()
+                .collect()
                 .delimited_by(just(LBRACE).padded(), just(RBRACE).padded()),
         )
         .map(
@@ -260,7 +279,53 @@ mod tests {
     }
 
     #[test]
-    fn test_bit_struct() {}
+    fn test_bit_struct() {
+        let input = r#"
+            bitstruct EcpriMessage(msb0) {
+                bit derived header: EcpriHeader,
+                bit derived union payload when header.message_type {
+                    0x00 => iq_data: EcpriIqData,
+                    0x01 => bit_sequence: EcpriBitSequence
+                }
+            }
+        "#;
+        let expected = BitStruct {
+            name: Identifier::new("EcpriMessage"),
+            bit_order: BitStructBitOrder::MostSignificantBitIsBit0,
+            fields: vec![
+                BitStructField::Ordinary {
+                    name: Identifier::new("header"),
+                    typ: BitStructFieldType::UserDefined(Identifier::new("EcpriHeader")),
+                    bits: BitStructFieldBitsType::Derived,
+                    attributes: vec![],
+                },
+                BitStructField::Union {
+                    name: Identifier::new("payload"),
+                    bits: BitStructFieldBitsType::Derived,
+                    when_expr: Some(Expr::Reference(Reference {
+                        path: vec![Identifier::new("header"), Identifier::new("message_type")],
+                    })),
+                    fields: vec![
+                        BitStructFieldUnion {
+                            discriminator: 0x00,
+                            name: Identifier::new("iq_data"),
+                            typ: BitStructFieldType::UserDefined(Identifier::new("EcpriIqData")),
+                        },
+                        BitStructFieldUnion {
+                            discriminator: 0x01,
+                            name: Identifier::new("bit_sequence"),
+                            typ: BitStructFieldType::UserDefined(Identifier::new(
+                                "EcpriBitSequence",
+                            )),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        let result = bit_struct().parse(input);
+        assert_eq!(result.into_result().unwrap(), expected);
+    }
 
     #[rstest]
     #[case::msb0("msb0", BitStructBitOrder::MostSignificantBitIsBit0)]
