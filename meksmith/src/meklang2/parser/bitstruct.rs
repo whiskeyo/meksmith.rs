@@ -5,6 +5,7 @@ use crate::meklang2::ast::{
     BitStruct, BitStructBitOrder, BitStructBuiltinType, BitStructField, BitStructFieldBitsType,
     BitStructFieldType, BitStructFieldUnion, BitStructOrdinaryFieldAttribute,
 };
+use crate::meklang2::parser::expr::expr;
 use crate::meklang2::parser::ident::identifier;
 use crate::meklang2::parser::numeric::number;
 use crate::meklang2::parser::token::{
@@ -12,7 +13,7 @@ use crate::meklang2::parser::token::{
     EQUALS, LBRACE, LBRACKET, LEAST_SIGNIFICANT_BIT_IS_BIT_0, LITTLE_ENDIAN, LITTLE_ENDIAN_ABBREV,
     LPAREN, MAPS_TO, MOST_SIGNIFICANT_BIT_IS_BIT_0, PLUS, RBRACE, RBRACKET, RPAREN,
     SIGNED_INTEGER_8, SIGNED_INTEGER_16, SIGNED_INTEGER_32, SIGNED_INTEGER_64, UNION,
-    UNSIGNED_INTEGER_8, UNSIGNED_INTEGER_16, UNSIGNED_INTEGER_32, UNSIGNED_INTEGER_64,
+    UNSIGNED_INTEGER_8, UNSIGNED_INTEGER_16, UNSIGNED_INTEGER_32, UNSIGNED_INTEGER_64, WHEN,
 };
 
 pub(crate) fn bit_struct_ordinary_field_attribute<'src>()
@@ -112,7 +113,7 @@ pub(crate) fn bit_struct_field<'src>() -> impl Parser<'src, &'src str, BitStruct
             attributes: attrs.map_or(vec![], |attrs| attrs),
         });
 
-    // <bit_struct_field_bits_type> union <name> when <expr>
+    // <bit_struct_field_bits_type> union <name> (when <expr>)?
     // {
     //      <bit_struct_field_union>+
     // }
@@ -120,6 +121,7 @@ pub(crate) fn bit_struct_field<'src>() -> impl Parser<'src, &'src str, BitStruct
         .padded()
         .then_ignore(just(UNION).padded())
         .then(identifier())
+        .then(just(WHEN).padded().ignore_then(expr()).or_not())
         .then(
             bit_struct_field_union()
                 .separated_by(just(COMMA).padded())
@@ -127,7 +129,14 @@ pub(crate) fn bit_struct_field<'src>() -> impl Parser<'src, &'src str, BitStruct
                 .collect::<Vec<BitStructFieldUnion>>()
                 .delimited_by(just(LBRACE).padded(), just(RBRACE).padded()),
         )
-        .map(|((bits, name), fields)| BitStructField::Union { name, bits, fields });
+        .map(
+            |(((bits, name), when_expr), fields)| BitStructField::Union {
+                name,
+                bits,
+                when_expr,
+                fields,
+            },
+        );
 
     choice((union_field, ordinary_field))
 }
@@ -152,7 +161,9 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
-    use crate::{meklang::ast::BuiltinType, meklang2::ast::Identifier};
+    use crate::meklang2::ast::{
+        BinaryOperator, Expr, Identifier, NumericLiteral, Radix, Reference,
+    };
 
     #[rstest]
     #[case::little_endian_abbreviated("le", BitStructOrdinaryFieldAttribute::LittleEndian)]
@@ -278,7 +289,7 @@ mod tests {
             attributes: vec![],
         }
     )]
-    #[case::union(
+    #[case::union_without_when_expr(
         r#"
             bit 0..16 union xxx {
                 0x00 => first: boolean,
@@ -288,6 +299,44 @@ mod tests {
         BitStructField::Union {
             name: Identifier::new("xxx"),
             bits: BitStructFieldBitsType::Range { from: 0, to: 16 },
+            when_expr: None,
+            fields: vec![
+                BitStructFieldUnion {
+                    discriminator: 0x00,
+                    name: Identifier::new("first"),
+                    typ: BitStructFieldType::Builtin(BitStructBuiltinType::Boolean),
+                },
+                BitStructFieldUnion {
+                    discriminator: 0x01,
+                    name: Identifier::new("second"),
+                    typ: BitStructFieldType::UserDefined(Identifier::new("Second")),
+                },
+            ],
+        }
+    )]
+    #[case::union_with_when_expr(
+        r#"
+            bit 0..16 union xxx when x == 1 or y > 2 {
+                0x00 => first: boolean,
+                0x01 => second: Second
+            }
+        "#,
+        BitStructField::Union {
+            name: Identifier::new("xxx"),
+            bits: BitStructFieldBitsType::Range { from: 0, to: 16 },
+            when_expr: Some(Expr::BinaryOperator {
+                operator: BinaryOperator::Or,
+                lhs: Box::new(Expr::BinaryOperator {
+                    operator: BinaryOperator::Equals,
+                    lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("x")] })),
+                    rhs: Box::new(Expr::NumericLiteral(NumericLiteral { value: 1, radix: Radix::Decimal })),
+                }),
+                rhs: Box::new(Expr::BinaryOperator {
+                    operator: BinaryOperator::GreaterThan,
+                    lhs: Box::new(Expr::Reference(Reference { path: vec![Identifier::new("y")] })),
+                    rhs: Box::new(Expr::NumericLiteral(NumericLiteral { value: 2, radix: Radix::Decimal })),
+                }),
+            }),
             fields: vec![
                 BitStructFieldUnion {
                     discriminator: 0x00,

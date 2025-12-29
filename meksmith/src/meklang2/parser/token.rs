@@ -32,6 +32,7 @@ pub(crate) const BIT_STRUCT: &str = "bitstruct";
 pub(crate) const MOST_SIGNIFICANT_BIT_IS_BIT_0: &str = "msb0";
 pub(crate) const LEAST_SIGNIFICANT_BIT_IS_BIT_0: &str = "lsb0";
 pub(crate) const UNION: &str = "union";
+pub(crate) const WHEN: &str = "when";
 
 pub(crate) const BIT: &str = "bit";
 pub(crate) const DERIVED: &str = "derived";

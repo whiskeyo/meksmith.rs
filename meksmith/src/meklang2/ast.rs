@@ -34,6 +34,43 @@ pub struct Reference {
 }
 
 // ***************************************
+// SECTION FOR EXPRESSIONS
+// ***************************************
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Expr {
+    NumericLiteral(NumericLiteral),
+    Reference(Reference),
+    UnaryOperator {
+        operator: UnaryOperator,
+        expr: Box<Expr>,
+    },
+    BinaryOperator {
+        operator: BinaryOperator,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum UnaryOperator {
+    Not,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum BinaryOperator {
+    And,
+    Or,
+
+    Equals,
+    NotEquals,
+    LessThan,
+    LessEqual,
+    GreaterThan,
+    GreaterEqual,
+}
+
+// ***************************************
 // SECTION FOR BIT ENUMS
 // ***************************************
 
@@ -84,8 +121,8 @@ pub enum BitStructField {
     },
     Union {
         name: Identifier,
-        // add "when" field or something
         bits: BitStructFieldBitsType,
+        when_expr: Option<Expr>,
         fields: Vec<BitStructFieldUnion>,
     },
 }
