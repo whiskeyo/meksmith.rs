@@ -1,0 +1,14 @@
+[package]
+name = "meksmith_bin"
+version = "0.0.1"
+edition = "2024"
+repository = "https://github.com/whiskeyo/meksmith.rs"
+
+[dependencies]
+# chumsky = { workspace = true, features = ["pratt"] }
+ariadne = { workspace = true, default-features = true }
+clap = { workspace = true, features = ["std", "derive", "help"] }
+
+# [dev-dependencies]
+# tempfile = { workspace = true, default-features = true }
+# rstest = { workspace = true, default-features = true }

@@ -84,7 +84,7 @@ pub(crate) fn expr<'src>() -> impl Parser<'src, &'src str, Expr, ErrType<'src>> 
                 expr: Box::new(expr),
             }),
             // and should be done after comparisons/negations, it's infix operator with left associativity
-            infix(Associativity::Left(2), operator(AND), |lhs, _, rhs, _| {
+            infix(left(2), operator(AND), |lhs, _, rhs, _| {
                 Expr::BinaryOperator {
                     operator: BinaryOperator::And,
                     lhs: Box::new(lhs),

@@ -38,9 +38,9 @@ pub(crate) const BIT: &str = "bit";
 pub(crate) const DERIVED: &str = "derived";
 
 pub(crate) const LITTLE_ENDIAN: &str = "little endian";
-pub(crate) const LITTLE_ENDIAN_ABBREV: &str = "le";
 pub(crate) const BIG_ENDIAN: &str = "big endian";
-pub(crate) const BIG_ENDIAN_ABBREV: &str = "be";
+pub(crate) const STATIC_ARRAY: &str = "static array";
+pub(crate) const DYNAMIC_ARRAY: &str = "dynamic array";
 
 // types
 pub(crate) const UNSIGNED_INTEGER_8: &str = "u8";
@@ -52,3 +52,10 @@ pub(crate) const SIGNED_INTEGER_16: &str = "i16";
 pub(crate) const SIGNED_INTEGER_32: &str = "i32";
 pub(crate) const SIGNED_INTEGER_64: &str = "i64";
 pub(crate) const BOOLEAN: &str = "boolean";
+
+// module metadata
+pub(crate) const METADATA: &str = "metadata";
+pub(crate) const MODULE: &str = "module";
+pub(crate) const VERSION: &str = "version";
+pub(crate) const DESCRIPTION: &str = "description";
+pub(crate) const DOCS: &str = "docs";

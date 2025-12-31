@@ -1,9 +1,42 @@
 use chumsky::prelude::*;
 
 use crate::meklang2::ErrType;
-use crate::meklang2::ast::{Definition, Module};
+use crate::meklang2::ast::{Definition, Metadata, Module};
 use crate::meklang2::parser::bitenum::bit_enum;
 use crate::meklang2::parser::bitstruct::bit_struct;
+use crate::meklang2::parser::token::{
+    DESCRIPTION, DOCS, LBRACE, METADATA, MODULE, RBRACE, VERSION,
+};
+
+pub(crate) fn metadata<'src>() -> impl Parser<'src, &'src str, Metadata, ErrType<'src>> {
+    let any_string = any()
+        .filter(|c: &char| *c != '\n')
+        .repeated()
+        .collect::<Vec<char>>()
+        .then_ignore(just("\n"));
+
+    let field = |field_name| {
+        just(field_name)
+            .padded()
+            .ignore_then(any_string)
+            .map(|chars| chars.into_iter().collect::<String>())
+    };
+
+    let fields = field(MODULE)
+        .then(field(VERSION).or_not())
+        .then(field(DESCRIPTION).or_not())
+        .then(field(DOCS).or_not())
+        .delimited_by(just(LBRACE).padded(), just(RBRACE).padded());
+
+    just(METADATA)
+        .ignore_then(fields)
+        .map(|(((module_name, version), description), docs)| Metadata {
+            module_name,
+            version,
+            description,
+            docs,
+        })
+}
 
 pub(crate) fn definition<'src>() -> impl Parser<'src, &'src str, Definition, ErrType<'src>> {
     choice((
@@ -13,10 +46,12 @@ pub(crate) fn definition<'src>() -> impl Parser<'src, &'src str, Definition, Err
 }
 
 pub(crate) fn module<'src>() -> impl Parser<'src, &'src str, Module, ErrType<'src>> {
-    definition()
-        .repeated()
-        .collect()
-        .map(|definitions| Module { definitions })
+    metadata()
+        .then(definition().repeated().collect())
+        .map(|(metadata, definitions)| Module {
+            metadata,
+            definitions,
+        })
 }
 
 #[cfg(test)]
@@ -28,6 +63,67 @@ mod tests {
         BitEnum, BitEnumField, BitStruct, BitStructBitOrder, BitStructBuiltinType, BitStructField,
         BitStructFieldBitsType, BitStructFieldType, Identifier,
     };
+
+    const STR_MODULE: &str = "light_proto";
+    const STR_VERSION: &str = "1.2.3-rev3";
+    const STR_DESCRIPTION: &str = "small protocol to manage lightbulb behavior";
+    const STR_DOCS: &str = "https://light-proto.meksmith.rs/docs/1.2.3-rev3.pdf";
+
+    const METADATA_MODULE: &str = "module light_proto";
+    const METADATA_VERSION: &str = "version 1.2.3-rev3";
+    const METADATA_DESCRIPTION: &str = "description small protocol to manage lightbulb behavior";
+    const METADATA_DOCS: &str = "docs https://light-proto.meksmith.rs/docs/1.2.3-rev3.pdf";
+
+    fn str_metadata() -> String {
+        format!(
+            "metadata {{ \n\t{}\n\t{}\n\t{}\n\t{}\n }}",
+            METADATA_MODULE, METADATA_VERSION, METADATA_DESCRIPTION, METADATA_DOCS
+        )
+    }
+
+    fn expected_metadata() -> Metadata {
+        Metadata {
+            module_name: String::from(STR_MODULE),
+            version: Some(String::from(STR_VERSION)),
+            description: Some(String::from(STR_DESCRIPTION)),
+            docs: Some(String::from(STR_DOCS)),
+        }
+    }
+
+    #[test]
+    fn test_metadata_empty() {
+        let input = "metadata { }";
+        let result = metadata().parse(input);
+        assert!(result.has_errors());
+    }
+
+    #[rstest]
+    #[case::only_module_name(vec![], None, None, None)]
+    #[case::with_version(vec![METADATA_VERSION], Some(STR_VERSION.to_string()), None, None)]
+    #[case::with_description(vec![METADATA_DESCRIPTION], None, Some(STR_DESCRIPTION.to_string()), None)]
+    #[case::with_docs(vec![METADATA_DOCS], None, None, Some(STR_DOCS.to_string()))]
+    #[case::with_version_and_description(vec![METADATA_VERSION, METADATA_DESCRIPTION], Some(STR_VERSION.to_string()), Some(STR_DESCRIPTION.to_string()), None)]
+    #[case::with_version_and_docs(vec![METADATA_VERSION, METADATA_DOCS], Some(STR_VERSION.to_string()), None, Some(STR_DOCS.to_string()))]
+    #[case::with_description_and_docs(vec![METADATA_DESCRIPTION, METADATA_DOCS], None, Some(STR_DESCRIPTION.to_string()), Some(STR_DOCS.to_string()))]
+    #[case::with_everything(vec![METADATA_VERSION, METADATA_DESCRIPTION, METADATA_DOCS], Some(STR_VERSION.to_string()), Some(STR_DESCRIPTION.to_string()), Some(STR_DOCS.to_string()))]
+    fn test_metadata(
+        #[case] input_fields: Vec<&str>,
+        #[case] version: Option<String>,
+        #[case] description: Option<String>,
+        #[case] docs: Option<String>,
+    ) {
+        let fields = input_fields.join("\n\t");
+        let input = format!("metadata {{ \n\t{}\n\t{}\n}}", METADATA_MODULE, fields);
+        let expected = Metadata {
+            module_name: String::from(STR_MODULE),
+            version,
+            description,
+            docs,
+        };
+
+        let result = metadata().parse(input.as_str());
+        assert_eq!(result.into_output().unwrap(), expected);
+    }
 
     const STR_ENUM_SWITCH: &str = r#"
         bitenum(1) Switch {
@@ -183,6 +279,7 @@ mod tests {
             STR_STRUCT_LIGHT,
         ],
         Module {
+            metadata: expected_metadata(),
             definitions: vec![
                 expected_def_enum_switch(),
                 expected_def_enum_brightness(),
@@ -199,6 +296,7 @@ mod tests {
             STR_ENUM_SWITCH,
         ],
         Module {
+            metadata: expected_metadata(),
             definitions: vec![
                 expected_def_color(),
                 expected_def_enum_brightness(),
@@ -208,8 +306,10 @@ mod tests {
         }
     )]
     fn test_module(#[case] input_vec: Vec<&str>, #[case] expected: Module) {
-        let input = input_vec.join("\n");
+        let input_defs = input_vec.join("\n");
+        let input = format!("{}\n{}", str_metadata(), input_defs);
         let input_ref = &input;
+
         let result = module().parse(input_ref);
         assert_eq!(result.into_output().unwrap(), expected);
     }

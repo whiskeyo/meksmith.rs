@@ -14,3 +14,7 @@ rstest = { workspace = true, default-features = true }
 [[example]]
 name = "c_generator"
 path = "examples/c_generator.rs"
+
+[[example]]
+name = "parser"
+path = "examples/parser.rs"

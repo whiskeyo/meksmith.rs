@@ -6,28 +6,37 @@ use crate::meklang2::ast::{
     BitStructFieldType, BitStructFieldUnion, BitStructOrdinaryFieldAttribute,
 };
 use crate::meklang2::parser::expr::expr;
-use crate::meklang2::parser::ident::identifier;
+use crate::meklang2::parser::ident::{identifier, reference};
 use crate::meklang2::parser::numeric::number;
 use crate::meklang2::parser::token::{
-    BIG_ENDIAN, BIG_ENDIAN_ABBREV, BIT, BIT_STRUCT, BOOLEAN, COLON, COMMA, DERIVED, DOUBLE_DOT,
-    EQUALS, LBRACE, LBRACKET, LEAST_SIGNIFICANT_BIT_IS_BIT_0, LITTLE_ENDIAN, LITTLE_ENDIAN_ABBREV,
-    LPAREN, MAPS_TO, MOST_SIGNIFICANT_BIT_IS_BIT_0, PLUS, RBRACE, RBRACKET, RPAREN,
-    SIGNED_INTEGER_8, SIGNED_INTEGER_16, SIGNED_INTEGER_32, SIGNED_INTEGER_64, UNION,
+    BIG_ENDIAN, BIT, BIT_STRUCT, BOOLEAN, COLON, COMMA, DERIVED, DOUBLE_DOT, DYNAMIC_ARRAY, EQUALS,
+    LBRACE, LBRACKET, LEAST_SIGNIFICANT_BIT_IS_BIT_0, LITTLE_ENDIAN, LPAREN, MAPS_TO,
+    MOST_SIGNIFICANT_BIT_IS_BIT_0, PLUS, RBRACE, RBRACKET, RPAREN, SIGNED_INTEGER_8,
+    SIGNED_INTEGER_16, SIGNED_INTEGER_32, SIGNED_INTEGER_64, STATIC_ARRAY, UNION,
     UNSIGNED_INTEGER_8, UNSIGNED_INTEGER_16, UNSIGNED_INTEGER_32, UNSIGNED_INTEGER_64, WHEN,
 };
 
 pub(crate) fn bit_struct_ordinary_field_attribute<'src>()
 -> impl Parser<'src, &'src str, BitStructOrdinaryFieldAttribute, ErrType<'src>> {
-    let little_endian = choice((
-        just(LITTLE_ENDIAN).padded(),
-        just(LITTLE_ENDIAN_ABBREV).padded(),
-    ))
-    .to(BitStructOrdinaryFieldAttribute::LittleEndian);
+    let little_endian = just(LITTLE_ENDIAN)
+        .padded()
+        .to(BitStructOrdinaryFieldAttribute::LittleEndian);
 
-    let big_endian = choice((just(BIG_ENDIAN).padded(), just(BIG_ENDIAN_ABBREV).padded()))
+    let big_endian = just(BIG_ENDIAN)
+        .padded()
         .to(BitStructOrdinaryFieldAttribute::BigEndian);
 
-    choice((little_endian, big_endian))
+    let static_array = just(STATIC_ARRAY)
+        .ignore_then(just(EQUALS).padded())
+        .ignore_then(number())
+        .map(|size| BitStructOrdinaryFieldAttribute::StaticArray { size });
+
+    let dynamic_array = just(DYNAMIC_ARRAY)
+        .ignore_then(just(EQUALS).padded())
+        .ignore_then(reference())
+        .map(|reference| BitStructOrdinaryFieldAttribute::DynamicArray { reference });
+
+    choice((little_endian, big_endian, static_array, dynamic_array))
 }
 
 pub(crate) fn bit_struct_ordinary_field_attributes<'src>()
@@ -185,10 +194,16 @@ mod tests {
     };
 
     #[rstest]
-    #[case::little_endian_abbreviated("le", BitStructOrdinaryFieldAttribute::LittleEndian)]
-    #[case::little_endian_full("little endian", BitStructOrdinaryFieldAttribute::LittleEndian)]
-    #[case::big_endian_abbreviated("be", BitStructOrdinaryFieldAttribute::BigEndian)]
-    #[case::big_endian_full("big endian", BitStructOrdinaryFieldAttribute::BigEndian)]
+    #[case::little_endian("little endian", BitStructOrdinaryFieldAttribute::LittleEndian)]
+    #[case::big_endian("big endian", BitStructOrdinaryFieldAttribute::BigEndian)]
+    #[case::static_array("static array = 8", BitStructOrdinaryFieldAttribute::StaticArray { size: 8 })]
+    #[case::static_array(
+        "dynamic array = x.y",
+        BitStructOrdinaryFieldAttribute::DynamicArray { reference: Reference { path: vec![
+            Identifier::new("x"),
+            Identifier::new("y"),
+        ] }}
+    )]
     fn test_bit_struct_ordinary_field_attribute(
         #[case] input: &str,
         #[case] expected: BitStructOrdinaryFieldAttribute,
@@ -199,12 +214,10 @@ mod tests {
 
     #[test]
     fn test_bit_struct_ordinary_field_attributes() {
-        let input = "[le, be, little endian, big endian]";
+        let input = "[little endian, static array = 4]";
         let expected = vec![
             BitStructOrdinaryFieldAttribute::LittleEndian,
-            BitStructOrdinaryFieldAttribute::BigEndian,
-            BitStructOrdinaryFieldAttribute::LittleEndian,
-            BitStructOrdinaryFieldAttribute::BigEndian,
+            BitStructOrdinaryFieldAttribute::StaticArray { size: 4 },
         ];
 
         let result = bit_struct_ordinary_field_attributes().parse(input);

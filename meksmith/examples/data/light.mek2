@@ -1,0 +1,44 @@
+metadata {
+    module light_proto
+    version 1.2.3-rev3
+    description small protocol to manage lightbulb behavior
+    docs https://light-proto.meksmith.rs/docs/1.2.3-rev3.pdf
+}
+
+bitenum(1) Switch {
+    off = 0,
+    on = 1
+}
+
+bitenum(2) Brightness {
+    quarter = 0,
+    half = 1,
+    three_quarters = 2,
+    full = 3
+}
+
+bitstruct Color(msb0) {
+    bit +8 red: u8,
+    bit +8 green: u8,
+    bit +8 blue: u8,
+    bit +8 alpha: u8
+}
+
+bitstruct Light(msb0) {
+    bit derived switch_status: Switch,
+    bit derived brightness: Brightness,
+    bit derived color: Color
+}
+
+bitenum(3) Room {
+    hallway =     0b001,
+    living_room = 0b010,
+    bedroom =     0b011,
+    kitchen =     0b100,
+    storage =     0b101,
+    reserved =    0b110..0b111
+}
+
+bitstruct HouseManagement(msb0) {
+    bit derived
+}

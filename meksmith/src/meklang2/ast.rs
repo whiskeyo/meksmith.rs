@@ -160,6 +160,8 @@ pub enum BitStructFieldBitsType {
 pub enum BitStructOrdinaryFieldAttribute {
     LittleEndian,
     BigEndian,
+    StaticArray { size: usize },
+    DynamicArray { reference: Reference },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -175,7 +177,16 @@ pub struct BitStructFieldUnion {
 // ***************************************
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Module {
+    pub metadata: Metadata,
     pub definitions: Vec<Definition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Metadata {
+    pub module_name: String,
+    pub version: Option<String>,
+    pub description: Option<String>,
+    pub docs: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
