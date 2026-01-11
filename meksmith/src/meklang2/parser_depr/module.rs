@@ -2,9 +2,9 @@ use chumsky::prelude::*;
 
 use crate::meklang2::ErrType;
 use crate::meklang2::ast::{Definition, Metadata, Module};
-use crate::meklang2::parser::bitenum::bit_enum;
-use crate::meklang2::parser::bitstruct::bit_struct;
-use crate::meklang2::parser::token::{
+use crate::meklang2::parser_depr::bitenum::bit_enum;
+use crate::meklang2::parser_depr::bitstruct::bit_struct;
+use crate::meklang2::parser_depr::token::{
     DESCRIPTION, DOCS, LBRACE, METADATA, MODULE, RBRACE, VERSION,
 };
 

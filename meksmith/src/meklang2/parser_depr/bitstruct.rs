@@ -5,10 +5,10 @@ use crate::meklang2::ast::{
     BitStruct, BitStructBitOrder, BitStructBuiltinType, BitStructField, BitStructFieldBitsType,
     BitStructFieldType, BitStructFieldUnion, BitStructOrdinaryFieldAttribute,
 };
-use crate::meklang2::parser::expr::expr;
-use crate::meklang2::parser::ident::{identifier, reference};
-use crate::meklang2::parser::numeric::number;
-use crate::meklang2::parser::token::{
+use crate::meklang2::parser_depr::expr::expr;
+use crate::meklang2::parser_depr::ident::{identifier, reference};
+use crate::meklang2::parser_depr::numeric::number;
+use crate::meklang2::parser_depr::token::{
     BIG_ENDIAN, BIT, BIT_STRUCT, BOOLEAN, COLON, COMMA, DERIVED, DOUBLE_DOT, DYNAMIC_ARRAY, EQUALS,
     LBRACE, LBRACKET, LEAST_SIGNIFICANT_BIT_IS_BIT_0, LITTLE_ENDIAN, LPAREN, MAPS_TO,
     MOST_SIGNIFICANT_BIT_IS_BIT_0, PLUS, RBRACE, RBRACKET, RPAREN, SIGNED_INTEGER_8,

@@ -2,7 +2,7 @@ use chumsky::prelude::*;
 
 use crate::meklang2::ErrType;
 use crate::meklang2::ast::{Identifier, Reference};
-use crate::meklang2::parser::token::DOT;
+use crate::meklang2::parser_depr::token::DOT;
 
 pub(crate) fn identifier<'src>() -> impl Parser<'src, &'src str, Identifier, ErrType<'src>> {
     text::ident()

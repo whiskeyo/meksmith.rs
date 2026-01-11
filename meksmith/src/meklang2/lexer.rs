@@ -1,6 +1,10 @@
+use chumsky::input::MappedInput;
 use chumsky::prelude::*;
 
-use crate::meklang2::SimpleErrorType;
+pub(crate) type SimpleError<'src> = chumsky::error::Simple<'src, char>;
+pub(crate) type SimpleErrorType<'src> = chumsky::extra::Err<SimpleError<'src>>;
+pub(crate) type RichTokenError<'src> = chumsky::error::Rich<'src, Token>;
+pub(crate) type RichTokenErrorType<'src> = chumsky::extra::Err<RichTokenError<'src>>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
@@ -42,6 +46,7 @@ pub enum Token {
     KeywordMsb0,
     KeywordLsb0,
     KeywordUnion,
+    KeywordOn,
     KeywordWhen,
     KeywordBit,
     KeywordDerived,
@@ -102,6 +107,7 @@ pub(crate) fn lexer_tokens<'src>()
             "msb0" => Token::KeywordMsb0,
             "lsb0" => Token::KeywordLsb0,
             "union" => Token::KeywordUnion,
+            "on" => Token::KeywordOn,
             "when" => Token::KeywordWhen,
             "bit" => Token::KeywordBit,
             "derived" => Token::KeywordDerived,
@@ -123,19 +129,42 @@ pub(crate) fn lexer_tokens<'src>()
     // --- numbers ---
     // that ugly `.then(ident.not())` is required to avoid parsing numbers followed by
     // identifiers, i.e. 0x1234aaa => (0x1234, aaa) is wrong.
-    let decimal_integer = text::int(10)
-        .then(ident.not())
-        .map(|(s, _): (&str, _)| Token::DecimalInteger(s.parse::<u64>().unwrap()));
+    let decimal_integer = text::digits(10)
+        .at_least(1)
+        .collect::<String>()
+        .then_ignore(
+            // Negative lookahead: fail if the next char is a letter or underscore
+            any()
+                .filter(|c: &char| c.is_ascii_alphabetic() || *c == '_')
+                .not(),
+        )
+        // .then(ident.not())
+        // .map(|(s, _)| Token::DecimalInteger(s.parse::<u64>().unwrap()));
+        .map(|s| Token::DecimalInteger(s.parse::<u64>().unwrap()));
 
     let hexadecimal_integer = just("0x")
-        .ignore_then(text::int(16))
-        .then(ident.not())
-        .map(|(s, _): (&str, _)| Token::HexadecimalInteger(u64::from_str_radix(s, 16).unwrap()));
+        .ignore_then(text::digits(16).at_least(1).collect::<String>())
+        .then_ignore(
+            // Negative lookahead: fail if the next char is a letter or underscore
+            any()
+                .filter(|c: &char| c.is_ascii_alphabetic() || *c == '_')
+                .not(),
+        )
+        // .then(ident.not())
+        // .map(|(s, _)| Token::HexadecimalInteger(u64::from_str_radix(&s, 16).unwrap()));
+        .map(|s| Token::HexadecimalInteger(u64::from_str_radix(&s, 16).unwrap()));
 
     let binary_integer = just("0b")
-        .ignore_then(text::int(2))
-        .then(ident.not())
-        .map(|(s, _): (&str, _)| Token::BinaryInteger(u64::from_str_radix(s, 2).unwrap()));
+        .ignore_then(text::digits(2).at_least(1).collect::<String>())
+        .then_ignore(
+            // Negative lookahead: fail if the next char is a letter or underscore
+            any()
+                .filter(|c: &char| c.is_ascii_alphabetic() || *c == '_')
+                .not(),
+        )
+        // .then(ident.not())
+        // .map(|(s, _)| Token::BinaryInteger(u64::from_str_radix(&s, 2).unwrap()));
+        .map(|s| Token::BinaryInteger(u64::from_str_radix(&s, 2).unwrap()));
 
     let integer = choice((hexadecimal_integer, binary_integer, decimal_integer));
 
@@ -167,7 +196,6 @@ pub(crate) fn lexer_tokens<'src>()
 
     // --- main part ---
     let token = choice((integer, symbol, ident, str_));
-    // let token = integer.or(symbol).or(str_).or(ident);
 
     token
         .spanned()
@@ -216,6 +244,7 @@ mod tests {
     #[case::keyword_msb0("msb0", Token::KeywordMsb0)]
     #[case::keyword_lsb0("lsb0", Token::KeywordLsb0)]
     #[case::keyword_union("union", Token::KeywordUnion)]
+    #[case::keyword_on("on", Token::KeywordOn)]
     #[case::keyword_when("when", Token::KeywordWhen)]
     #[case::keyword_bit("bit", Token::KeywordBit)]
     #[case::keyword_derived("derived", Token::KeywordDerived)]
@@ -229,10 +258,13 @@ mod tests {
     #[case::string_with_newline("\"string in\nquotes\"", Token::String("string in\nquotes".into()))]
     #[case::decimal_integer("1234", Token::DecimalInteger(1234))]
     #[case::decimal_integer_zero("0", Token::DecimalInteger(0))]
+    #[case::decimal_integer_multiple_zeros("0000", Token::DecimalInteger(0))]
     #[case::hexadecimal_integer("0x1234", Token::HexadecimalInteger(0x1234))]
     #[case::hexadecimal_integer_zero("0x0", Token::HexadecimalInteger(0x0))]
+    #[case::hexadecimal_integer_with_filling_zeros("0x0001234", Token::HexadecimalInteger(0x1234))]
     #[case::binary_integer("0b10101", Token::BinaryInteger(0b10101))]
     #[case::binary_integer_zero("0b0", Token::BinaryInteger(0b0))]
+    #[case::binary_integer_with_filling_zeros("0b000010101", Token::BinaryInteger(0b10101))]
     #[case::symbol_left_brace("{", Token::LeftBrace)]
     #[case::symbol_right_brace("}", Token::RightBrace)]
     #[case::symbol_left_paren("(", Token::LeftParen)]
@@ -301,6 +333,26 @@ mod tests {
                     text: "doc comment".into(),
                     kind: CommentKind::Doc,
                 },
+            ],
+        );
+    }
+
+    #[test]
+    fn test_lexer_tokens_keywords_and_range() {
+        let input = "bit 0..8 x: y";
+
+        let tokens_result = lexer_tokens().parse(input);
+        let tokens = tokens_result.into_output().unwrap();
+        check_items::<Token>(
+            &tokens,
+            vec![
+                Token::KeywordBit,
+                Token::DecimalInteger(0),
+                Token::DotDot,
+                Token::DecimalInteger(8),
+                Token::Ident("x".into()),
+                Token::Colon,
+                Token::Ident("y".into()),
             ],
         );
     }

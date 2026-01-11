@@ -2,9 +2,9 @@ use chumsky::prelude::*;
 
 use crate::meklang2::ErrType;
 use crate::meklang2::ast::{BitEnum, BitEnumField};
-use crate::meklang2::parser::ident::identifier;
-use crate::meklang2::parser::numeric::number;
-use crate::meklang2::parser::token::{
+use crate::meklang2::parser_depr::ident::identifier;
+use crate::meklang2::parser_depr::numeric::number;
+use crate::meklang2::parser_depr::token::{
     BIT_ENUM, COMMA, DOUBLE_DOT, EQUALS, LBRACE, LPAREN, RBRACE, RPAREN,
 };
 

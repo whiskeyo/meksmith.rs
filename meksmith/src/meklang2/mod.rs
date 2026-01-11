@@ -3,17 +3,15 @@
 pub mod ast;
 pub mod lexer;
 pub mod parser;
+pub mod parser_depr;
 
 use chumsky::Parser;
 
 use crate::meklang2::ast::Module;
-use crate::meklang2::parser::module::module;
+use crate::meklang2::parser_depr::module::module;
 
 pub(crate) type RichErr<'src> = chumsky::error::Rich<'src, char>;
 pub(crate) type ErrType<'src> = chumsky::extra::Err<RichErr<'src>>;
-
-pub(crate) type SimpleError<'src> = chumsky::error::Simple<'src, char>;
-pub(crate) type SimpleErrorType<'src> = chumsky::extra::Err<SimpleError<'src>>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InputType {

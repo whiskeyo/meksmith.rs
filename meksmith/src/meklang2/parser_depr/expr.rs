@@ -3,9 +3,9 @@ use chumsky::prelude::*;
 
 use crate::meklang2::ErrType;
 use crate::meklang2::ast::{BinaryOperator, Expr, NumericLiteral, Radix, Reference, UnaryOperator};
-use crate::meklang2::parser::ident::reference;
-use crate::meklang2::parser::numeric::numeric_literal;
-use crate::meklang2::parser::token::{
+use crate::meklang2::parser_depr::ident::reference;
+use crate::meklang2::parser_depr::numeric::numeric_literal;
+use crate::meklang2::parser_depr::token::{
     AND, DOT, EQUALS_TO, GREATER_EQUAL, GREATER_THAN, LESS_EQUAL, LESS_THAN, LPAREN, NOT,
     NOT_EQUAL, OR, RPAREN,
 };
