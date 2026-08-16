@@ -138,6 +138,40 @@ img.logo {
     border: 2px solid var(--green-color-darkest);
 }
 
+.code-editor-container-readonly {
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.code-editor-container-readonly .code-editor-inner {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: min-content;
+}
+
+.code-editor-container-readonly .code-editor-line-numbers,
+.code-editor-container-readonly .code-editor-highlighted {
+    position: static;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    overflow: visible;
+    align-self: stretch;
+}
+
+.code-editor-container-readonly .code-editor-line-numbers {
+    flex: 0 0 var(--code-editor-line-numbers-width);
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+.code-editor-container-readonly .code-editor-highlighted {
+    flex: 1 1 auto;
+}
+
 .code-editor-line-numbers, .code-editor-highlighted, .code-editor {
     position: absolute;
     top: 0;
@@ -180,6 +214,12 @@ img.logo {
     padding-left: 8px;
 }
 
+.code-editor-readonly {
+    pointer-events: auto;
+    user-select: text;
+    z-index: 2;
+}
+
 .code-editor {
     text-align: left;
     left: var(--code-editor-line-numbers-width);
@@ -213,7 +253,13 @@ img.logo {
     padding: 8px 16px;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
-    font-size: 15px;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: left;
+    white-space: pre;
+    overflow: auto;
+    max-height: 45%;
     z-index: 10;
 }
 
@@ -332,4 +378,76 @@ img.logo {
     outline: none;
     border-color: var(--green-color);
     box-shadow: 0 0 5px var(--green-color-light);
+}
+
+.example-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em 1.25em;
+    flex-wrap: wrap;
+    margin-top: 0.75em;
+    margin-bottom: 2em;
+}
+
+.example-controls .common-label {
+    margin-bottom: 0;
+}
+
+.example-controls .common-select {
+    width: auto;
+    max-width: none;
+}
+
+.example-controls .example-select {
+    min-width: 16em;
+    max-width: 28em;
+}
+
+.example-controls .emit-target-select {
+    width: auto;
+    min-width: 7em;
+}
+
+.code-editor-with-output {
+    margin-bottom: 2em;
+}
+
+.code-editor-target-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5em;
+    margin-bottom: 0.75em;
+}
+
+.code-editor-target-bar .common-label {
+    margin-bottom: 0;
+}
+
+.code-editor-panes {
+    margin-bottom: 0;
+    align-items: flex-start;
+}
+
+.code-editor-pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    position: relative;
+}
+
+.code-editor-pane-title {
+    margin: 0 0 0.5em 0;
+    min-height: 1.5em;
+}
+
+.code-editor-pane .code-editor-container {
+    width: 100%;
+    max-width: 100%;
+}
+
+.emit-target-select {
+    width: auto;
+    min-width: 7em;
 }

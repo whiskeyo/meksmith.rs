@@ -3,112 +3,117 @@ use leptos::prelude::*;
 use crate::components::code_editor::{CodeEditor, CodeEditorLanguage, CodeEditorOptions};
 use crate::components::text::TextWithAnimatedGradient;
 
-const MEKLANG_BNF_GRAMMAR: &str = r#"<protocol> ::= (<definition> | <comment>)+
-<comment> ::= '#' <text> '\n'
-<definition> ::=
-      <enumeration_definition>
-    | <structure_definition>
-    | <union_definition>
-    | <type_definition>
+const MEKLANG_BNF_GRAMMAR: &str = r#"<file> ::= [<protocol_decl>] <item>*
+<comment> ::= '//' <text> '\n' | '#' <text> '\n'
 
-<enumeration_definition> ::= 'enum' <identifier> <left_brace> <enumeration_field>+ <right_brace> <semicolon>
-<enumeration_field> ::= <identifier> <equal> (<unsigned_integer> | <range>) <semicolon>
+<protocol_decl> ::= 'protocol' <identifier> ';'
 
-<structure_definition> ::= 'struct' <identifier> <left_brace> <structure_field>+ <right_brace> <semicolon>
-<structure_field> ::= [<attributes>] <identifier> <colon> <type_identifier> <semicolon>
+<item> ::=
+      <structure_def>
+    | <enumerated_def>
+    | <choice_def>
+    | <type_alias>
 
-<union_definition> ::= 'union' <identifier> <left_brace> <union_field>+ <right_brace> <semicolon>
-<union_field> ::= (<unsigned_integer> | <range>) <maps_to> <identifier> <colon> <type_identifier> <semicolon>
+<structure_def> ::=
+    'structure' '(' <bit_order> ')' <identifier> [<params>] <left_brace> <field_list> <right_brace>
+<enumerated_def> ::=
+    'enumerated' '(' <bit_order> <comma> <width_bits> ')' <identifier> <left_brace> <variant_list> <right_brace>
+<choice_def> ::=
+    'choice' '(' <bit_order> ')' <identifier> [<params>] 'on' <identifier> <left_brace> <arm_list> <right_brace>
+<type_alias> ::= 'type' <identifier> [<width_bits>] <equal> <type_expr> <semicolon>
 
-<attribute> ::=
-      'discriminated_by' <equal> <identifier>
-    | 'bits' <equal> <unsigned_integer>
-    | 'bytes' <equal> <unsigned_integer>
-<attribute_tail> ::= <comma> <attribute>
-<attributes> ::= <left_bracket> <attribute> <attribute_tail>* <right_bracket>
+<params> ::= <left_paren> <param> (<comma> <param>)* <right_paren>
+<param> ::= <identifier> <colon> <identifier>
 
-<type_definition> ::= 'using' <identifier> <equal> <type_identifier> <semicolon>
+<field_list> ::= <field> (<comma> <field>)* <comma>?
+<field> ::= <identifier> [<width_bits>] <colon> <type_expr> [<attributes>]
 
-<type_identifier> ::=
-      <builtin_type>
-    | <user_defined_type>
-    | <static_array_type>
-    | <dynamic_array_type>
+<variant_list> ::= <enum_variant> (<comma> <enum_variant>)* <comma>?
+<enum_variant> ::= <identifier> <equal> (<integer> | <range>)
 
-<builtin_type> ::=
-      'int8' | 'int16' | 'int32' | 'int64'
-    | 'uint8' | 'uint16' | 'uint32' | 'uint64'
-    | 'float32' | 'float64'
-    | 'bit' | 'byte'
-<user_defined_type> ::= <identifier>
-<static_array_type> ::=
-      <builtin_type> <left_bracket> <unsigned_integer> <right_bracket>
-    | <user_defined_type> <left_bracket> <unsigned_integer> <right_bracket>
-<dynamic_array_type> ::=
-      <builtin_type> <left_bracket> <right_bracket>
-    | <user_defined_type> <left_bracket> <right_bracket>
+<arm_list> ::= <choice_arm> (<comma> <choice_arm>)* <comma>?
+<choice_arm> ::= <choice_pattern> <fat_arrow> <type_expr>
+<choice_pattern> ::=
+      <integer>
+    | <identifier> <double_colon> <identifier>
+    | '_'
 
-<range> ::= <unsigned_integer> <double_dot> <unsigned_integer>
+<attributes> ::= <left_bracket> <identifier> (<comma> <identifier>)* <right_bracket>
+
+<type_expr> ::=
+      'null'
+    | <identifier> [<generics>] [<type_args>]
+<generics> ::= <left_angle> <expr> (<comma> <expr>)* <right_angle>
+<type_args> ::= <left_paren> <expr> (<comma> <expr>)* <right_paren>
+
+<width_bits> ::= <left_paren> <expr> ' bits' <right_paren>
+<bit_order> ::= 'msb0' | 'lsb0'
+<range> ::= <integer> <double_dot> <integer>
+
+<expr> ::= <integer> | <identifier> | <expr> <dot> <identifier> | <call> | '(' <expr> ')' | <binary_expr>
+<call> ::= <expr> <left_paren> [<expr> (<comma> <expr>)*] <right_paren>
+<binary_expr> ::= <expr> ('+' | '-' | '*' | '/') <expr>
+
 <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
-
-<unsigned_integer> ::= <hexadecimal> | <binary> | <decimal>
-<hexadecimal> ::= "0x" [0-9a-fA-F]+
-<binary> ::= "0b" [01]+
+<integer> ::= <decimal> | <hexadecimal> | <binary>
 <decimal> ::= [0-9]+
-
+<hexadecimal> ::= '0x' [0-9a-fA-F]+
+<binary> ::= '0b' [01]+
 <text> ::= [^\n]*
 
 <left_brace> ::= '{'
 <right_brace> ::= '}'
 <left_bracket> ::= '['
 <right_bracket> ::= ']'
+<left_paren> ::= '('
+<right_paren> ::= ')'
+<left_angle> ::= '<'
+<right_angle> ::= '>'
 <semicolon> ::= ';'
 <colon> ::= ':'
-<maps_to> ::= '=>'
+<fat_arrow> ::= '=>'
+<double_colon> ::= '::'
 <equal> ::= '='
 <comma> ::= ','
+<dot> ::= '.'
 <double_dot> ::= '..'"#;
 
 const MEKLANG_BUILTIN_TYPES: &str = r#"int8, int16, int32, int64,
 uint8, uint16, uint32, uint64,
 float32, float64,
-bit, byte"#;
+bit, byte, boolean, null"#;
 
-const MEKLANG_STRUCTURE_EXAMPLE: &str = r#"struct StructureName {
-    first_field: uint8;
-    second_field: int16;
-    third_field: bit;
-    fourth_field: int64[2];
-};"#;
+const MEKLANG_PROTOCOL_EXAMPLE: &str = r#"protocol Demo;"#;
 
-const MEKLANG_ENUMERATION_EXAMPLE: &str = r#"enum EnumerationName {
-    single_value = 1;
-    another_single_value = 2;
-    range_of_values = 3..10;
-};"#;
+const MEKLANG_STRUCTURE_EXAMPLE: &str = r#"structure(msb0) Header {
+    revision: ProtocolRevision,
+    reserved (3 bits): null [unused],
+    flag (1 bit): boolean,
+    body_size: u16 [computed],
+}"#;
 
-const MEKLANG_UNION_EXAMPLE: &str = r#"union UnionName {
-    0 => first_field: uint8;
-    1 => second_field: int16;
-    2 => third_field: bit;
-};"#;
+const MEKLANG_ENUMERATION_EXAMPLE: &str = r#"enumerated(msb0, 8 bits) MessageType {
+    alpha = 0,
+    beta = 1,
+    reserved = 2..15,
+}"#;
 
-const MEKLANG_ATTRIBUTES_EXAMPLE: &str = r#"[discriminated_by=name_of_field]
-[bits=size_in_bits]
-[bytes=size_in_bytes]"#;
+const MEKLANG_CHOICE_EXAMPLE: &str = r#"choice(msb0) Payload(message_type: MessageType, payload_size: u16)
+    on message_type {
+    MessageType::alpha => AlphaBody(payload_size),
+    MessageType::beta => BetaBody(payload_size),
+    _ => OpaquePayload(payload_size),
+}"#;
 
-const MEKLANG_DISCRIMINATED_BY_ATTRIBUTE_EXAMPLE: &str = r#"structure StructureName {
-    my_field: uint8;
-    [discriminated_by=my_field]
-    some_union: UnionName;
-};"#;
+const MEKLANG_TYPE_ALIAS_EXAMPLE: &str = r#"type PC_ID (16 bits) = u16;"#;
 
-const MEKLANG_BITS_BYTES_ATTRIBUTE_EXAMPLE: &str = r#"structure StructureName {
-    [bits=6]
-    my_field: uint8;
-    [bytes=3]
-    another_field: uint32;
-};"#;
+const MEKLANG_ATTRIBUTES_EXAMPLE: &str = r#"[computed]
+[unused]"#;
+
+const MEKLANG_PARAMETRIC_STRUCTURE_EXAMPLE: &str = r#"structure(msb0) IQData(payload_size: u16) {
+    pc_id: PC_ID,
+    samples: DynamicArray<byte, payload_size - 4>,
+}"#;
 
 #[component]
 pub fn Cheatsheet() -> impl IntoView {
@@ -125,42 +130,47 @@ pub fn Cheatsheet() -> impl IntoView {
                 <div class="documentation-grid">
                     <CheatsheetBoxWithCode
                         title="built-in types"
-                        description="There are a few supported built-in types, which are appropriately mapped to built-in types of various languages by smiths."
+                        description="Built-in scalar types map to host-language primitives. boolean and null are also available for flags and reserved bitfields."
                         code_example=MEKLANG_BUILTIN_TYPES
                     />
                     <CheatsheetBox
                         title="smiths"
-                        description="\"smiths\" are the code generators that produce code in a specific language. Currently, only C is supported, but more languages are planned to be added in the future, such as Rust, Python, C++, Go, and possibly even Wireshark dissectors."
+                        description="Smiths are code generators that turn meklang into ready-to-use wire codecs. C and C++23 backends are available today; more targets may follow."
+                    />
+                    <CheatsheetBoxWithCode
+                        title="protocol"
+                        description="Optional protocol name scopes generated C/C++ symbols (for example ecpri_message_encode)."
+                        code_example=MEKLANG_PROTOCOL_EXAMPLE
                     />
                     <CheatsheetBoxWithCode
                         title="structures"
-                        description="Simple structure containing a few fields with different types."
+                        description="Structures declare bit order with msb0 or lsb0. Fields may specify an explicit wire width in bits and optional attributes."
                         code_example=MEKLANG_STRUCTURE_EXAMPLE
                     />
                     <CheatsheetBoxWithCode
                         title="enumerations"
-                        description="Enumerations can be defined in a similar way to C language, but they also support ranges of values."
+                        description="Enumerations take a bit order and fixed width. Variants may be single values or inclusive ranges."
                         code_example=MEKLANG_ENUMERATION_EXAMPLE
                     />
                     <CheatsheetBoxWithCode
-                        title="(discriminated) unions"
-                        description="Unions allow you to define a field that can hold different types, similar to C unions. The value before => is the discriminator."
-                        code_example=MEKLANG_UNION_EXAMPLE
+                        title="choices"
+                        description="Choices dispatch on a discriminant field or parameter. Arms use EnumType::variant, integer literals, or _ for catch-all."
+                        code_example=MEKLANG_CHOICE_EXAMPLE
+                    />
+                    <CheatsheetBoxWithCode
+                        title="type aliases"
+                        description="Type aliases attach a name (and optional wire width) to another type expression."
+                        code_example=MEKLANG_TYPE_ALIAS_EXAMPLE
                     />
                     <CheatsheetBoxWithCode
                         title="attributes"
-                        description="Structure fields can contain attributes that specify additional properties or behaviors in encoding/decoding."
+                        description="Field attributes control codec behavior. computed fields are filled by the encoder; unused fields are on the wire but ignored on decode."
                         code_example=MEKLANG_ATTRIBUTES_EXAMPLE
                     />
                     <CheatsheetBoxWithCode
-                        title="discriminated_by attribute"
-                        description="The discriminated_by attribute \"connects\" a union to its discriminator field. The discriminator field can be any field in the structure and might be either integer, byte or enumeration. If enum is used, not existing values may cause issues in smiths."
-                        code_example=MEKLANG_DISCRIMINATED_BY_ATTRIBUTE_EXAMPLE
-                    />
-                    <CheatsheetBoxWithCode
-                        title="bits and bytes attributes"
-                        description="The bits and bytes attributes allow you to specify the size of a field in bits or bytes. Since there is no padding in meklang, the output size will be 6 bits + 3 bytes = 27 bits."
-                        code_example=MEKLANG_BITS_BYTES_ATTRIBUTE_EXAMPLE
+                        title="parametric structures"
+                        description="Structures and choices may take parameters used in field types and array lengths."
+                        code_example=MEKLANG_PARAMETRIC_STRUCTURE_EXAMPLE
                     />
                 </div>
             </div>

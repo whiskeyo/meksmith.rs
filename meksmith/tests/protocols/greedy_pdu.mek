@@ -1,0 +1,13 @@
+// Synthetic fixture - length-prefixed frames in a greedy PDU.
+// Not a real protocol; exercises Frame + GreedyArray<Pdu> codecs.
+
+protocol GreedyDemo;
+
+structure(msb0) Frame {
+    len: u16,
+    bytes: DynamicArray<byte, len>,
+}
+
+structure(msb0) Pdu {
+    frames: GreedyArray<Frame>,
+}

@@ -1,0 +1,4 @@
+protocol LexError;
+
+structure(msb0) Oops {
+    x: u8 @,

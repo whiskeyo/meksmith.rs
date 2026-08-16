@@ -10,5 +10,3 @@ leptos = { workspace = true, features = ["csr"] }
 leptos_router = { workspace = true }
 console_error_panic_hook = { workspace = true }
 web-sys = { workspace = true }
-regex-lite = { workspace = true, default-features = true }
-once_cell = { workspace = true }

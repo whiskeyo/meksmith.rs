@@ -1,0 +1,11 @@
+---
+source: meksmith/tests/diagnostic_snapshots.rs
+expression: "rendered_snapshot(&source, \"unknown_type.mek\")"
+---
+[31mError:[0m unknown type `NotAType` on field `field`
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m unknown_type.mek:4:5 [38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m4 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0mfield: NotAType[38;5;249m,[0m
+ [38;5;240m  │[0m     ───────┬───────  
+ [38;5;240m  │[0m            ╰───────── S0002
+[38;5;246m───╯[0m

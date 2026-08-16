@@ -4,13 +4,16 @@ version = "0.0.1"
 edition = "2024"
 repository = "https://github.com/whiskeyo/meksmith.rs"
 
+[[bin]]
+name = "meksmith"
+path = "src/bin/meksmith.rs"
+
 [dependencies]
-chumsky = { workspace = true, default-features = false }
+chumsky = { workspace = true, default-features = true }
+thiserror = "2.0.18"
+ariadne = "0.5.0"
 
 [dev-dependencies]
 tempfile = { workspace = true, default-features = true }
 rstest = { workspace = true, default-features = true }
-
-[[example]]
-name = "c_generator"
-path = "examples/c_generator.rs"
+insta = "1.43.1"

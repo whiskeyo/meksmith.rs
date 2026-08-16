@@ -1,51 +1,36 @@
+use crate::components::syntax_highlight::highlight;
 use crate::components::text::TextWithAnimatedGradient;
-use crate::utils::static_regex::static_regex;
+
+pub(crate) use crate::components::syntax_highlight::CodeEditorLanguage;
 
 use leptos::prelude::*;
-use regex_lite::Regex;
+use leptos::wasm_bindgen::JsCast;
 
-#[derive(Clone, Debug)]
-pub(crate) enum CodeEditorLanguage {
-    #[allow(dead_code)]
-    PlainText,
-    Meklang,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EmitTarget {
     C,
+    Cpp,
 }
 
-static_regex!(MEKLANG_KEYWORDS_REGEX, r"\b(enum|struct|union|using)\b");
-static_regex!(
-    MEKLANG_BUILTIN_TYPES_REGEX,
-    r"\b(uint8|uint16|uint32|uint64|int8|int16|int32|int64|float32|float64|bit|byte)\b"
-);
-static_regex!(MEKLANG_COMMENT_REGEX, r"#.*");
-
-static_regex!(C_KEYWORDS_REGEX, r"\b(enum|struct|union|typedef|static)\b");
-static_regex!(
-    C_BUILTIN_TYPES_REGEX,
-    r"\b(int|unsigned|long|uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|int64_t|float|double|bool|char)\b"
-);
-
-impl CodeEditorLanguage {
-    fn get_highlighter(&self) -> LanguageHighlighter {
-        const KEYWORD_CLASS: &str = "code-editor-highlight-keyword";
-        const BUILTIN_TYPE_CLASS: &str = "code-editor-highlight-builtin-type";
-        const COMMENT_CLASS: &str = "code-editor-highlight-comment";
-
+impl EmitTarget {
+    fn label(self) -> &'static str {
         match self {
-            CodeEditorLanguage::PlainText => LanguageHighlighter { rules: vec![] },
-            CodeEditorLanguage::Meklang => LanguageHighlighter {
-                rules: vec![
-                    (KEYWORD_CLASS, &MEKLANG_KEYWORDS_REGEX),
-                    (BUILTIN_TYPE_CLASS, &MEKLANG_BUILTIN_TYPES_REGEX),
-                    (COMMENT_CLASS, &MEKLANG_COMMENT_REGEX),
-                ],
-            },
-            CodeEditorLanguage::C => LanguageHighlighter {
-                rules: vec![
-                    (KEYWORD_CLASS, &C_KEYWORDS_REGEX),
-                    (BUILTIN_TYPE_CLASS, &C_BUILTIN_TYPES_REGEX),
-                ],
-            },
+            Self::C => "C",
+            Self::Cpp => "C++23",
+        }
+    }
+
+    fn output_language(self) -> CodeEditorLanguage {
+        match self {
+            Self::C => CodeEditorLanguage::C,
+            Self::Cpp => CodeEditorLanguage::Cpp,
+        }
+    }
+
+    fn generate(self, source: &str) -> Result<String, String> {
+        match self {
+            Self::C => meksmith::smith_c::generate_c_code_from_string(source),
+            Self::Cpp => meksmith::smith_cpp::generate_cpp_code_from_string(source),
         }
     }
 }
@@ -60,41 +45,29 @@ pub(crate) struct CodeEditorOptions {
 
 impl CodeEditorOptions {
     pub(crate) fn get_formatted_size(&self) -> String {
-        format!("width: {}px; height: {}px;", self.width, self.height)
-    }
-
-    pub(crate) fn highlight_code(&self, code: &str) -> String {
-        self.language.get_highlighter().highlight(code)
+        format!(
+            "width: 100%; max-width: {}px; height: {}px;",
+            self.width, self.height
+        )
     }
 }
 
-type CssClass = &'static str;
+#[component]
+fn CodeView(
+    code_editor_options: CodeEditorOptions,
+    #[prop(into)] code: ReadSignal<String>,
+) -> impl IntoView {
+    let language = code_editor_options.language;
+    let highlighted = Memo::new(move |_| highlight(&code.get(), language));
+    let line_numbers = Memo::new(move |_| get_line_numbers(&code.get()));
 
-#[derive(Clone, Debug)]
-struct LanguageHighlighter {
-    rules: Vec<(CssClass, &'static Regex)>,
-}
-
-impl LanguageHighlighter {
-    fn highlight(&self, code: &str) -> String {
-        let mut highlighted_code = code
-            .replace('&', "&amp;")
-            .replace('<', "&lt;")
-            .replace('>', "&gt;");
-
-        for (css_class, regex) in &self.rules {
-            highlighted_code = regex
-                .replace_all(&highlighted_code, |caps: &regex_lite::Captures| {
-                    format!(r#"<span class="{}">{}</span>"#, css_class, &caps[0])
-                })
-                .into_owned();
-        }
-
-        if highlighted_code.ends_with('\n') {
-            highlighted_code.push(' ');
-        }
-
-        highlighted_code
+    view! {
+        <div class="code-editor-container code-editor-container-readonly" style=code_editor_options.get_formatted_size()>
+            <div class="code-editor-inner">
+                <pre class="code-editor-line-numbers">{move || line_numbers.get()}</pre>
+                <pre class="code-editor-highlighted code-editor-readonly" inner_html=move || highlighted.get()></pre>
+            </div>
+        </div>
     }
 }
 
@@ -104,7 +77,13 @@ pub fn CodeEditor(
     #[prop(into)] code: ReadSignal<String>,
     #[prop(into)] set_code: WriteSignal<String>,
 ) -> impl IntoView {
-    let language_highlighter = code_editor_options.language.get_highlighter();
+    if code_editor_options.disabled {
+        return view! { <CodeView code_editor_options code /> }.into_any();
+    }
+
+    let language = code_editor_options.language;
+    let highlighted = Memo::new(move |_| highlight(&code.get(), language));
+    let line_numbers = Memo::new(move |_| get_line_numbers(&code.get()));
 
     let textarea_code_ref: NodeRef<leptos::html::Textarea> = NodeRef::new();
     let code_editor_options_for_textarea = code_editor_options.clone();
@@ -114,93 +93,54 @@ pub fn CodeEditor(
         textarea.set_value(&code.get());
         textarea.set_spellcheck(false);
         textarea.set_class_name("code-editor");
-        textarea.set_disabled(code_editor_options_for_textarea.disabled);
+        textarea.set_disabled(false);
     });
 
     let pre_parsed_code_ref: NodeRef<leptos::html::Pre> = NodeRef::new();
-    let code_editor_options_for_pre = code_editor_options.clone();
-    pre_parsed_code_ref.on_load(move |pre| {
-        pre.set_class_name("code-editor-highlighted");
-        pre.set_scroll_top(textarea_code_ref.get().unwrap().scroll_top());
-        pre.set_inner_html(
-            &code_editor_options_for_pre
-                .clone()
-                .highlight_code(&code.get()),
-        );
-    });
-
     let pre_line_numbers_ref: NodeRef<leptos::html::Pre> = NodeRef::new();
-    pre_line_numbers_ref.on_load(move |pre| {
-        pre.set_class_name("code-editor-line-numbers");
-        pre.set_scroll_top(textarea_code_ref.get().unwrap().scroll_top());
-        pre.set_text_content(Some(&get_line_numbers(&code.get())));
-    });
 
-    let language_highlighter_for_input_sync = language_highlighter.clone();
+    let sync_scroll = move || {
+        let Some(textarea) = textarea_code_ref.get() else {
+            return;
+        };
+        let scroll_top = textarea.scroll_top();
+        let scroll_left = textarea.scroll_left();
+        if let Some(pre) = pre_parsed_code_ref.get() {
+            pre.set_scroll_top(scroll_top);
+            pre.set_scroll_left(scroll_left);
+        }
+        if let Some(pre) = pre_line_numbers_ref.get() {
+            pre.set_scroll_top(scroll_top);
+            pre.set_scroll_left(scroll_left);
+        }
+    };
+
     let input_sync = move |_| {
         let textarea = textarea_code_ref.get().unwrap();
-        let pre_parsed_code = pre_parsed_code_ref.get().unwrap();
-        let pre_line_numbers = pre_line_numbers_ref.get().unwrap();
-
         set_code.set(textarea.value());
-        pre_parsed_code.set_inner_html(
-            language_highlighter_for_input_sync
-                .highlight(&textarea.value())
-                .as_str(),
-        );
-        pre_line_numbers
-            .set_text_content(Some(get_line_numbers(textarea.value().as_str()).as_str()));
-
-        let scroll_top = textarea.scroll_top();
-        let scroll_left = textarea.scroll_left();
-
-        pre_parsed_code.set_scroll_top(scroll_top);
-        pre_parsed_code.set_scroll_left(scroll_left);
-        pre_line_numbers.set_scroll_top(scroll_top);
-        pre_line_numbers.set_scroll_left(scroll_left);
+        sync_scroll();
     };
 
-    let scroll_sync = move |_| {
-        let textarea = textarea_code_ref.get().unwrap();
-        let pre_parsed_code = pre_parsed_code_ref.get().unwrap();
-        let pre_line_numbers = pre_line_numbers_ref.get().unwrap();
-
-        let scroll_top = textarea.scroll_top();
-        let scroll_left = textarea.scroll_left();
-
-        pre_parsed_code.set_scroll_top(scroll_top);
-        pre_parsed_code.set_scroll_left(scroll_left);
-        pre_line_numbers.set_scroll_top(scroll_top);
-        pre_line_numbers.set_scroll_left(scroll_left);
-    };
+    let scroll_sync = move |_| sync_scroll();
 
     let keydown = move |event: web_sys::KeyboardEvent| {
         CodeEditorShortcut::from(event.clone()).handle_event(event, &textarea_code_ref, &set_code);
     };
 
-    let language_highlighter_for_effect = language_highlighter.clone();
-    Effect::new({
-        move |_| {
-            if let Some(textarea) = textarea_code_ref.get()
-                && textarea.value() != code.get()
-            {
-                textarea.set_value(&code.get());
-            }
-
-            if let Some(pre) = pre_parsed_code_ref.get() {
-                pre.set_inner_html(&language_highlighter_for_effect.highlight(&code.get()));
-            }
-
-            if let Some(pre) = pre_line_numbers_ref.get() {
-                pre.set_text_content(Some(get_line_numbers(&code.get()).as_str()));
-            }
+    Effect::new(move |_| {
+        if let Some(textarea) = textarea_code_ref.get()
+            && textarea.value() != code.get()
+        {
+            textarea.set_value(&code.get());
         }
     });
 
     view! {
-        <div class="code-editor-container" style=code_editor_options.clone().get_formatted_size()>
-            <pre node_ref=pre_line_numbers_ref></pre>
-            <pre node_ref=pre_parsed_code_ref></pre>
+        <div class="code-editor-container" style=code_editor_options.get_formatted_size()>
+            <pre class="code-editor-line-numbers" node_ref=pre_line_numbers_ref>
+                {move || line_numbers.get()}
+            </pre>
+            <pre class="code-editor-highlighted" node_ref=pre_parsed_code_ref inner_html=move || highlighted.get()></pre>
             <textarea node_ref=textarea_code_ref
                 on:input=input_sync
                 on:scroll=scroll_sync
@@ -209,6 +149,7 @@ pub fn CodeEditor(
             ></textarea>
         </div>
     }
+    .into_any()
 }
 
 #[component]
@@ -218,36 +159,104 @@ pub fn CodeEditorWithOutput(
     extra_section_classes: &'static str,
     #[prop(into)] code: ReadSignal<String>,
     #[prop(into)] set_code: WriteSignal<String>,
+    #[prop(default = true)] show_target_selector: bool,
+    #[prop(optional)] emit_target: Option<ReadSignal<EmitTarget>>,
+    #[prop(optional)] set_emit_target: Option<WriteSignal<EmitTarget>>,
 ) -> impl IntoView {
     let (parsed_code, set_parsed_code) = signal(String::new());
     let (parsing_error, set_parsing_error) = signal(String::new());
+    let (internal_emit_target, internal_set_emit_target) = signal(EmitTarget::C);
+
+    let output_width = output_code_editor_options.width;
+    let output_height = output_code_editor_options.height;
+    let output_disabled = output_code_editor_options.disabled;
+
+    let current_emit_target = move || {
+        emit_target
+            .map(|signal| signal.get())
+            .unwrap_or_else(|| internal_emit_target.get())
+    };
+    let set_current_emit_target = move |target: EmitTarget| {
+        if let Some(setter) = set_emit_target {
+            setter.set(target);
+        } else {
+            internal_set_emit_target.set(target);
+        }
+    };
 
     Effect::new(move |_| {
-        match meksmith::smith_c::generate_c_code_from_string(code.get().as_str()) {
-            Ok(c_code) => {
-                set_parsed_code.set(c_code);
+        let source = code.get();
+        let target = current_emit_target();
+        match target.generate(&source) {
+            Ok(generated) => {
+                set_parsed_code.set(generated);
                 set_parsing_error.set(String::new());
             }
-            Err(e) => set_parsing_error.set(e),
+            Err(error) => set_parsing_error.set(error),
         }
     });
 
     view! {
-        <section class={extra_section_classes.to_string() + " flex-container flex-row"}>
-            <div class="flex-1">
-                <h3>"Input in " <TextWithAnimatedGradient text="meklang" /> </h3>
-                <CodeEditor code_editor_options=input_code_editor_options.clone() code=code set_code=set_code />
-                <Show
-                    when=move || !parsing_error.get().is_empty()
-                >
-                    <div class="code-editor-error-box">
-                        {move || parsing_error.get()}
-                    </div>
-                </Show>
-            </div>
-            <div class="flex-1">
-                <h3>"Generated output in C"</h3>
-                <CodeEditor code_editor_options=output_code_editor_options.clone() code=parsed_code set_code=set_parsed_code />
+        <section class={extra_section_classes.to_string() + " code-editor-with-output"}>
+            <Show when=move || show_target_selector>
+                <div class="code-editor-target-bar">
+                    <label for="emit-target-select" class="common-label">"Output target: "</label>
+                    <select
+                        id="emit-target-select"
+                        class="common-select emit-target-select"
+                        on:change=move |event| {
+                            let value = event
+                                .target()
+                                .unwrap()
+                                .unchecked_into::<web_sys::HtmlSelectElement>()
+                                .value();
+                            set_current_emit_target(if value == "cpp" {
+                                EmitTarget::Cpp
+                            } else {
+                                EmitTarget::C
+                            });
+                        }
+                    >
+                        <option value="c" selected=move || current_emit_target() == EmitTarget::C>
+                            "C"
+                        </option>
+                        <option value="cpp" selected=move || current_emit_target() == EmitTarget::Cpp>
+                            "C++23"
+                        </option>
+                    </select>
+                </div>
+            </Show>
+            <div class="code-editor-panes flex-container flex-row">
+                <div class="code-editor-pane flex-1">
+                    <h3 class="code-editor-pane-title">"Input in " <TextWithAnimatedGradient text="meklang" /></h3>
+                    <CodeEditor code_editor_options=input_code_editor_options.clone() code=code set_code=set_code />
+                    <Show when=move || !parsing_error.get().is_empty()>
+                        <div class="code-editor-error-box">
+                            {move || parsing_error.get()}
+                        </div>
+                    </Show>
+                </div>
+                <div class="code-editor-pane flex-1">
+                    <h3 class="code-editor-pane-title">
+                        "Generated output in "
+                        {move || current_emit_target().label()}
+                    </h3>
+                    {move || {
+                        let target = current_emit_target();
+                        view! {
+                            <CodeEditor
+                                code_editor_options=CodeEditorOptions {
+                                    width: output_width,
+                                    height: output_height,
+                                    language: target.output_language(),
+                                    disabled: output_disabled,
+                                }
+                                code=parsed_code
+                                set_code=set_parsed_code
+                            />
+                        }
+                    }}
+                </div>
             </div>
         </section>
     }
@@ -544,7 +553,10 @@ mod tests {
             disabled: false,
         };
 
-        assert_eq!(options.get_formatted_size(), "width: 800px; height: 600px;");
+        assert_eq!(
+            options.get_formatted_size(),
+            "width: 100%; max-width: 800px; height: 600px;"
+        );
     }
 
     #[test]

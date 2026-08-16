@@ -1,0 +1,24 @@
+// Synthetic fixture - bit-packed header + [computed] size field.
+// Not a real protocol; exercises msb0 sub-byte layout and header codecs.
+
+protocol BitpackDemo;
+
+enumerated(msb0, 4 bits) Version {
+    zero = 0,
+    one = 1,
+    reserved_future = 2..15,
+}
+
+enumerated(msb0, 8 bits) Kind {
+    alpha = 0,
+    beta = 1,
+    gamma = 2..255,
+}
+
+structure(msb0) Header {
+    version: Version,
+    reserved (3 bits): null [unused],
+    flag (1 bit): boolean,
+    kind: Kind,
+    body_size: u16 [computed],
+}

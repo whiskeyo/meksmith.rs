@@ -1,0 +1,7 @@
+struct UDP {
+    source_port (16 bits): u16,
+    destination_port (16 bits): u16,
+    length (16 bits): u16,
+    checksum (16 bits): u16,
+    payload: bytearray [size=length-8]
+}

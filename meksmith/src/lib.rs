@@ -1,141 +1,90 @@
-mod ast;
-mod parser;
+pub mod analyze;
+pub mod diagnostic;
+pub mod frontend;
+pub mod smith;
 pub mod smith_c;
+pub mod smith_cpp;
 
-use crate::ast::*;
-use crate::parser::protocol;
+pub use analyze::{CheckedFile, analyze};
+pub use diagnostic::{Diagnostic, DiagnosticCode, Diagnostics, Emitter, Severity};
+pub use frontend::{File, parse, parse_source};
+pub use smith::{CSmith, CppSmith, Smith};
 
-use chumsky::Parser;
-
-/// Based on the provided input, returns the line and column number of the error encountered during parsing.
-fn get_error_location(input: &str, error: crate::parser::RichError) -> (usize, usize) {
-    let mut line = 1;
-    let mut column = 1;
-
-    for (i, c) in input.char_indices() {
-        if i >= error.span().start && i < error.span().end {
-            return (line, column);
-        }
-        if c == '\n' {
-            line += 1;
-            column = 1;
-        } else {
-            column += 1;
-        }
-    }
-
-    (line, column)
+pub fn check(source: &str) -> Result<CheckedFile, Diagnostics> {
+    let file = frontend::parser::parse(source)?;
+    analyze(&file)
 }
 
-/// Parses a protocol from a string input and returns the resulting AST.
-pub fn parse_protocol_to_ast(input: &str) -> Result<Protocol, String> {
-    let result = protocol().parse(input);
-
-    match result.into_result() {
-        Ok(ast) => Ok(ast),
-        Err(errors) => {
-            let error_messages: Vec<String> = errors
-                .into_iter()
-                .map(|e| {
-                    let (line, column) = get_error_location(input, e.clone());
-                    e.to_string()
-                        + " in "
-                        + line.to_string().as_str()
-                        + ":"
-                        + column.to_string().as_str()
-                })
-                .collect();
-            Err(format!(
-                "Parsing failed. Errors: {}",
-                error_messages.join(", ")
-            ))
-        }
-    }
-}
-
-/// Parses a protocol from a file and returns the resulting AST. Similar to `parse_protocol_to_ast`,
-/// but reads the input from a file instead of a string.
-pub fn parse_protocol_from_file_to_ast(file_path: &str) -> Result<Protocol, String> {
-    let input =
-        std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {e}"))?;
-    parse_protocol_to_ast(&input)
+pub fn check_path(path: impl AsRef<std::path::Path>) -> Result<CheckedFile, Diagnostics> {
+    let path = path.as_ref();
+    let source = std::fs::read_to_string(path).map_err(|err| {
+        Diagnostics::from(Diagnostic::error(
+            DiagnosticCode::E0001Unexpected,
+            frontend::span::SimpleSpan::new(0, 0),
+            format!("failed to read {}: {err}", path.display()),
+        ))
+    })?;
+    check(&source)
 }
 
 #[cfg(test)]
-mod tests {
+mod integration_tests {
     use super::*;
+    use crate::smith::{CSmith, Smith};
 
     #[test]
-    fn test_parse_protocol_to_ast() {
-        let input = r#"
-using MyType = int32[10];
-        "#;
-
-        let result = parse_protocol_to_ast(input);
-        assert!(result.is_ok());
-        let protocol = result.unwrap();
-        assert_eq!(protocol.definitions.len(), 1);
-        if let Definition::Type(type_def) = &protocol.definitions[0] {
-            assert_eq!(type_def.new_type.name, "MyType");
-            assert_eq!(
-                type_def.r#type,
-                TypeIdentifier::StaticArray {
-                    r#type: Box::new(TypeIdentifier::Integer32),
-                    size: 10,
-                }
-            );
-        } else {
-            panic!("Expected a TypeDefinition");
-        }
+    fn check_ecpri_example() {
+        let source = include_str!("../examples/ecpri.mek");
+        let checked = check(source).expect("ecpri.mek should analyze cleanly");
+        assert!(!checked.emit_order.is_empty());
+        assert!(checked.symbols.get("Message").is_some());
     }
 
     #[test]
-    fn test_parse_protocol_to_ast_with_errors() {
-        let input = r#"
-using MyType = int32[10;
-        "#;
-
-        let result = parse_protocol_to_ast(input);
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Parsing failed. Errors: found ';' expected digit, or right bracket")
-        );
+    fn check_generics_sketch_example() {
+        let source = include_str!("../examples/generics-sketch.mek");
+        let checked = check(source).expect("generics-sketch.mek should analyze cleanly");
+        assert_eq!(checked.file.items.len(), 6);
     }
 
     #[test]
-    fn test_parse_protocol_from_file_to_ast() {
-        let file_path = "test_protocol.txt";
-        if std::fs::exists(file_path).expect("Failure in checking file existence") {
-            std::fs::remove_file(file_path).expect("Failure in removing existing file");
-        }
+    fn emit_c_types_for_ecpri() {
+        let source = include_str!("../examples/ecpri.mek");
+        let checked = check(source).expect("ecpri.mek should analyze cleanly");
+        let output = CSmith
+            .generate(&checked)
+            .expect("ecpri.mek should emit C types");
+        assert!(output.contains("typedef struct"));
+        assert!(output.contains("Message"));
+        assert!(output.contains("Payload"));
+    }
 
-        assert!(
-            std::fs::write(
-                file_path,
-                r#"
-using MyType = int32[10];
-"#,
-            )
-            .is_ok()
-        );
-        let result = parse_protocol_from_file_to_ast(file_path);
-        assert!(result.is_ok());
-        let protocol = result.unwrap();
-        assert_eq!(protocol.definitions.len(), 1);
-        if let Definition::Type(type_def) = &protocol.definitions[0] {
-            assert_eq!(type_def.new_type.name, "MyType");
-            assert_eq!(
-                type_def.r#type,
-                TypeIdentifier::StaticArray {
-                    r#type: Box::new(TypeIdentifier::Integer32),
-                    size: 10,
-                }
-            );
-        } else {
-            panic!("Expected a TypeDefinition");
-        }
-        std::fs::remove_file(file_path).expect("Failure in removing test file");
+    #[test]
+    fn smith_c_wrapper_roundtrip() {
+        let source = include_str!("../examples/ecpri.mek");
+        let output = smith_c::generate_c_code_from_string(source).expect("wrapper should work");
+        assert!(output.contains("typedef enum"));
+    }
+
+    #[test]
+    fn c_enum_expands_ranged_variants() {
+        let source = r#"protocol Demo;
+
+enumerated(msb0, 4 bits) MyEnum {
+    x = 1,
+    y = 2..4,
+    z = 5,
+}
+
+structure(msb0) MyStruct {
+    tag: MyEnum,
+}"#;
+        let output = smith_c::generate_c_code_from_string(source).expect("range enum should emit");
+        assert!(output.contains("MyEnum_x = 1"));
+        assert!(output.contains("MyEnum_y_2 = 2"));
+        assert!(output.contains("MyEnum_y_3 = 3"));
+        assert!(output.contains("MyEnum_y_4 = 4"));
+        assert!(output.contains("MyEnum_z = 5"));
+        assert!(!output.contains("MyEnum_y = 2"));
     }
 }

@@ -1,0 +1,33 @@
+// Parser/analyzer sketch - syntax check for planned generic builtins.
+// Not a real protocol; see meksmith/docs/implementation-plan.md.
+
+protocol GenericsSketch;
+
+enumerated(msb0, 8 bits) Tag {
+    alpha = 0,
+    beta = 1,
+}
+
+structure(msb0) WithStatics {
+    fixed: StaticArray<byte, 4>,
+    tag: Tag,
+}
+
+structure(msb0) WithOptional(flag: boolean) {
+  // presence controlled by sibling field (PFCP-style)
+    extra: Optional<u16, flag>,
+}
+
+structure(msb0) WithBitSlice {
+  // 6-bit view; host type u8 in generated C
+    flags (6 bits): BitSlice<u8>,
+}
+
+structure(msb0) WithCounted(len: u16) {
+  // sugar for DynamicArray<byte, len> - same wire layout
+    payload: CountedArray<byte, len>,
+}
+
+structure(msb0) WithGreedy {
+    rest: GreedyArray<WithStatics>,
+}

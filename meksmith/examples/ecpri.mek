@@ -1,0 +1,268 @@
+// eCPRI V2.0 (CPRI coop spec 2019-05-10), sec.3.2.3-3.2.4.
+// Transmission byte order: network / big-endian. Bit order within bytes: MSB first.
+//
+// Wire entry point for encode/decode: Pdu (not Message alone).
+//
+// Builtin expressions used by the PDU layout (interpreted by smiths):
+//   size(x)           - encoded byte length of x
+//   pad_to_align_if(A, L, when) - 0 when when is false; else (A - (L % A)) % A zero bytes
+//
+// Fixed reserved bits (e.g. header reserved 3 bits) stay as explicit null [unused] fields:
+// they are on the wire, fixed width, always zero on encode, ignored on decode (sec.4.2).
+
+protocol eCPRI;
+
+// ---------------------------------------------------------------------------
+// Common header (Figure 8) - exactly 4 bytes per message
+// ---------------------------------------------------------------------------
+
+enumerated(msb0, 4 bits) ProtocolRevision {
+    reserved = 0,
+    v1_through_v2 = 1, // specs 1.0, 1.1, 1.2, 2.0 (sec.4.4)
+    reserved_future = 2..15,
+}
+
+enumerated(msb0, 8 bits) MessageType {
+    iq_data = 0,
+    bit_sequence = 1,
+    real_time_control_data = 2,
+    generic_data_transfer = 3,
+    remote_memory_access = 4,
+    one_way_delay_measurement = 5,
+    remote_reset = 6,
+    event_indication = 7,
+    iwf_start_up = 8,
+    iwf_operation = 9,
+    iwf_mapping = 10,
+    iwf_delay_control = 11,
+    reserved = 12..63,       // illegal on wire -> receiver discards (sec.4.2 type 2)
+    vendor_specific = 64..255,
+}
+
+structure(msb0) Header {
+    revision: ProtocolRevision,
+    reserved (3 bits): null [unused],
+    concatenation (1 bit): boolean,
+    message_type: MessageType,
+    payload_size: u16 [computed],
+}
+
+structure(msb0) Message {
+    header: Header,
+    payload: Payload(header.message_type, header.payload_size),
+}
+
+// ---------------------------------------------------------------------------
+// PDU - transport payload (sec.3.2.3.1, Figure 9-10)
+//
+// Layout on the wire:
+//   PduMessage { message, inter_message_padding }
+//   PduMessage { message, inter_message_padding }
+//   ...
+//   PduMessage { message, inter_message_padding=0 }   // last message: C=0
+//
+// inter_message_padding is derived from the C-bit and message size - not user-supplied.
+// This models concatenation padding as an explicit [unused] field with a computed length
+// rather than a blind align(4) on the whole PDU.
+// ---------------------------------------------------------------------------
+
+structure(msb0) PduMessage {
+    message: Message,
+    inter_message_padding: DynamicArray<
+        byte,
+        pad_to_align_if(4, size(message), message.header.concatenation)
+    > [unused],
+}
+
+structure(msb0) Pdu {
+    // GreedyArray: decode repeated PduMessage until the byte buffer is exhausted.
+    // Encode: user fills only PduMessage.message; concatenation on all but the last entry.
+    messages: GreedyArray<PduMessage>,
+}
+
+// ---------------------------------------------------------------------------
+// Payload dispatch (Table 4)
+// ---------------------------------------------------------------------------
+
+choice(msb0) Payload(message_type: MessageType, payload_size: u16) on message_type {
+    MessageType::iq_data => IQData(payload_size),
+    MessageType::bit_sequence => BitSequence(payload_size),
+    MessageType::real_time_control_data => RealTimeControlData(payload_size),
+    MessageType::generic_data_transfer => GenericDataTransfer(payload_size),
+    MessageType::remote_memory_access => RemoteMemoryAccess(payload_size),
+    MessageType::one_way_delay_measurement => OneWayDelayMeasurement(payload_size),
+    MessageType::remote_reset => RemoteReset(payload_size),
+    MessageType::event_indication => EventIndication(payload_size),
+    MessageType::iwf_start_up => OpaquePayload(payload_size),
+    MessageType::iwf_operation => OpaquePayload(payload_size),
+    MessageType::iwf_mapping => OpaquePayload(payload_size),
+    MessageType::iwf_delay_control => OpaquePayload(payload_size),
+    MessageType::reserved => OpaquePayload(payload_size),
+    MessageType::vendor_specific => OpaquePayload(payload_size),
+}
+
+// Opaque catch-all for reserved, vendor, and not-yet-modeled IWF layouts.
+structure(msb0) OpaquePayload(payload_size: u16) {
+    data: DynamicArray<byte, payload_size>,
+}
+
+// ---------------------------------------------------------------------------
+// Shared identifiers
+// ---------------------------------------------------------------------------
+
+type PC_ID (16 bits) = u16;
+type SEQ_ID (16 bits) = u16;
+type RTC_ID (16 bits) = u16;
+type LONG_PC_ID (32 bits) = u32;
+type LONG_SEQ_ID (32 bits) = u32;
+
+// ---------------------------------------------------------------------------
+// Message type #0: IQ Data (Figure 11) - payload = 4 + L
+// ---------------------------------------------------------------------------
+
+structure(msb0) IQData(payload_size: u16) {
+    pc_id: PC_ID,
+    seq_id: SEQ_ID,
+    iq_samples: DynamicArray<byte, payload_size - 4>,
+}
+
+// ---------------------------------------------------------------------------
+// Message type #1: Bit Sequence (Figure 13) - payload = 4 + L
+// ---------------------------------------------------------------------------
+
+structure(msb0) BitSequence(payload_size: u16) {
+    pc_id: PC_ID,
+    seq_id: SEQ_ID,
+    bit_sequence: DynamicArray<byte, payload_size - 4>,
+}
+
+// ---------------------------------------------------------------------------
+// Message type #2: Real-Time Control Data (Figure 15) - payload = 4 + L
+// ---------------------------------------------------------------------------
+
+structure(msb0) RealTimeControlData(payload_size: u16) {
+    rtc_id: RTC_ID,
+    seq_id: SEQ_ID,
+    rt_control_data: DynamicArray<byte, payload_size - 4>,
+}
+
+// ---------------------------------------------------------------------------
+// Message type #3: Generic Data Transfer (Figure 17) - payload = 8 + L
+// ---------------------------------------------------------------------------
+
+structure(msb0) GenericDataTransfer(payload_size: u16) {
+    pc_id: LONG_PC_ID,
+    seq_id: LONG_SEQ_ID,
+    data_transferred: DynamicArray<byte, payload_size - 8>,
+}
+
+// ---------------------------------------------------------------------------
+// Message type #4: Remote Memory Access (Figure 19-20) - payload = 12 + L
+// ---------------------------------------------------------------------------
+
+enumerated(msb0, 4 bits) RMAReadWrite {
+    read = 0,
+    write = 1,
+    write_no_resp = 2,
+    reserved = 3..15,
+}
+
+enumerated(msb0, 4 bits) RMAReqResp {
+    request = 0,
+    response = 1,
+    failure = 2,
+    reserved = 3..15,
+}
+
+structure(msb0) RemoteMemoryAccess(payload_size: u16) {
+    remote_memory_access_id (8 bits): u8,
+    read_write: RMAReadWrite,
+    req_resp: RMAReqResp,
+    element_id (16 bits): u16,
+    address (48 bits): u64,
+    length (16 bits): u16,
+    // Data presence depends on read/write + req/resp (Table 7); wire length is always
+    // payload_size - 12. Semantic `length` is validated against data on encode.
+    data: DynamicArray<byte, payload_size - 12>,
+}
+
+// ---------------------------------------------------------------------------
+// Message type #5: One-Way Delay Measurement (Figure 23-24) - payload = 20 + L
+// ---------------------------------------------------------------------------
+
+enumerated(msb0, 8 bits) OneWayDelayActionType {
+    request = 0x00,
+    request_with_follow_up = 0x01,
+    response = 0x02,
+    remote_request = 0x03,
+    remote_request_with_follow_up = 0x04,
+    follow_up = 0x05,
+    reserved = 0x06..0xFF,
+}
+
+// 10 bytes: 6-byte seconds + 4-byte nanoseconds (IEEE 1588-2008 sec.5.3.3).
+structure(msb0) PtpTimestamp {
+    seconds (48 bits): u64,
+    nanoseconds (32 bits): u32,
+}
+
+structure(msb0) OneWayDelayMeasurement(payload_size: u16) {
+    measurement_id (8 bits): u8,
+    action_type: OneWayDelayActionType,
+    timestamp: PtpTimestamp,
+    compensation_value (64 bits): u64,
+    // Dummy bytes pad to payload_size; meaningful only for request action types (sec.3.2.4.6.2).
+    dummy_bytes: DynamicArray<byte, payload_size - 20>,
+}
+
+// ---------------------------------------------------------------------------
+// Message type #6: Remote Reset (Figure 27) - payload = 3 + L
+// ---------------------------------------------------------------------------
+
+enumerated(msb0, 8 bits) RemoteResetCodeOp {
+    reserved = 0x00,
+    request = 0x01,
+    response = 0x02,
+    reserved_future = 0x03..0xFF,
+}
+
+structure(msb0) RemoteReset(payload_size: u16) {
+    reset_id (16 bits): u16,
+    reset_code_op: RemoteResetCodeOp,
+    vendor_specific_payload: DynamicArray<byte, payload_size - 3>,
+}
+
+// ---------------------------------------------------------------------------
+// Message type #7: Event Indication (Figure 30) - payload = 4 + 8*N
+// ---------------------------------------------------------------------------
+
+enumerated(msb0, 8 bits) EventType {
+    fault_indication = 0x00,
+    fault_indication_ack = 0x01,
+    notification_indication = 0x02,
+    synchronization_request = 0x03,
+    synchronization_ack = 0x04,
+    synchronization_end = 0x05,
+    reserved = 0x06..0xFF,
+}
+
+enumerated(msb0, 4 bits) RaiseCease {
+    raise = 0,
+    cease = 1,
+    reserved = 2..15,
+}
+
+structure(msb0) FaultNotificationRecord {
+    element_id (16 bits): u16,
+    raise_cease: RaiseCease,
+    fault_notification_number (12 bits): u16,
+    additional_information (32 bits): u32,
+}
+
+structure(msb0) EventIndication(payload_size: u16) {
+    event_type: EventType,
+    event_id (8 bits): u8,
+    sequence_number (8 bits): u8,
+    number_of_faults_or_notifications (8 bits): u8,
+    records: DynamicArray<FaultNotificationRecord, (payload_size - 4) / 8>,
+}

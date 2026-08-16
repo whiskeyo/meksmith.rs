@@ -6,17 +6,17 @@ use crate::components::text::TextWithAnimatedGradient;
 
 #[component]
 pub fn Home() -> impl IntoView {
-    let example_code = r#"enum MyEnum {
-    x = 1;
-    y = 2..4;
-};
+    let example_code = r#"protocol Demo;
 
-struct MyStruct {
-    [bits=3]
-    myEnum: MyEnum;
-    [bits=5]
-    hello: uint8;
-};
+enumerated(msb0, 4 bits) MyEnum {
+    x = 1,
+    y = 2..4,
+}
+
+structure(msb0) MyStruct {
+    myEnum (3 bits): MyEnum,
+    hello (5 bits): u8,
+}
 "#
     .to_string();
 
@@ -49,8 +49,7 @@ struct MyStruct {
                         children=view! { <span class="no-break">"ORAN FH"</span> }
                     />
                     " and many others), and a code generator"
-                    " that produces ready-to-use code in C language. Don't worry, more languages will be supported"
-                    " in the future."
+                    " that produces ready-to-use code in C or C++23."
                 </p>
             </section>
             <CodeEditorWithOutput

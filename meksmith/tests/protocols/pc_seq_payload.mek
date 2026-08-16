@@ -1,0 +1,13 @@
+// Synthetic fixture - parametric structure with fixed-width prefix + trailing bytes.
+// Not a real protocol; exercises composite DynamicArray<byte, N-M> codecs.
+
+protocol PcSeqDemo;
+
+type LaneId (16 bits) = u16;
+type PartId (16 bits) = u16;
+
+structure(msb0) PcSeqPayload(payload_size: u16) {
+    lane_id: LaneId,
+    part_id: PartId,
+    bytes: DynamicArray<byte, payload_size - 4>,
+}

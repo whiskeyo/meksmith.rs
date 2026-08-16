@@ -1,0 +1,4 @@
+protocol Unclosed;
+
+structure(msb0) Frame {
+    x: u8,

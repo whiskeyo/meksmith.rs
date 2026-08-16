@@ -1,0 +1,54 @@
+struct PFCPMessage {
+    version: u8 [bits=3, default=0b001],
+    _spare: null [bits=2, do_not_use, do_not_print],
+    fo: boolean [bits=1],
+    mp: boolean [bits=1],
+    s: boolean [bits=1],
+    message_type: PFCPMessageType [bits=derived],
+    message_length: u16 [bits=16],
+    seid: u64 [bits=64, optional=if(s)],
+    sequence_number: u32 [bits=24],
+    message_priority: u8 [bits=4, optional=if(mp)],
+    _spare: null [bits=4, do_not_use, do_not_print],
+    information_elements: PFCPInformationElement [bits=derived, list, size=message_length]
+}
+
+struct PFCPInformationElement {
+    type: PFCPInformationElementType [bits=derived],
+    ie_length: u16 [bits=16],
+    enterprise_id: u16 [bits=16, optional=if(type >= 32768)],
+    payload: bytearray [size=ie_length]
+}
+
+enum PFCPMessageType [bits=8] {
+    reserved = 0x00,
+    heartbeat_req = 0x01,
+    hearbeat_resp = 0x02,
+    pfd_management_req = 0x03,
+    pfd_management_resp = 0x04,
+    association_setup_req = 0x05,
+    association_setup_resp = 0x06,
+    association_update_req = 0x07,
+    association_update_resp = 0x08,
+    association_release_req = 0x09,
+    association_release_resp = 0x0A,
+    version_not_supported = 0x0B,
+    node_report_req = 0x0C,
+    node_report_resp = 0x0D,
+    session_set_deletion_req = 0x0E,
+    session_set_deletion_resp = 0x0F
+    // other message types are skipped
+}
+
+enum PFCPInformationElementType [bits=16] {
+    reserved = 0x0000,
+    create_pdr = 0x0001,
+    pdi = 0x0002,
+    create_far = 0x0003,
+    forwarding_parameters = 0x0004,
+    duplicating_parameters = 0x0005,
+    create_urr = 0x0006,
+    create_qer = 0x0007,
+    created_pdr = 0x0008
+    // other IE types are skipped
+}

@@ -1,0 +1,18 @@
+protocol ChoiceGap;
+
+enumerated(msb0, 8 bits) Tag {
+    alpha = 0,
+    beta = 1,
+}
+
+structure(msb0) AlphaBody {
+    x: u8,
+}
+
+structure(msb0) BetaBody {
+    y: u8,
+}
+
+choice(msb0) Body(tag: Tag) on tag {
+    Tag::alpha => AlphaBody,
+}

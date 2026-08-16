@@ -1,0 +1,9 @@
+protocol Dup;
+
+structure(msb0) Alpha {
+    x: u8,
+}
+
+structure(msb0) Alpha {
+    y: u16,
+}

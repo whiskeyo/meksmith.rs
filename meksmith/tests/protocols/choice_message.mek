@@ -1,0 +1,34 @@
+// Synthetic fixture - choice dispatch + message wrapper.
+// Not a real protocol; exercises choice/body/message composite codecs.
+
+protocol ChoiceDemo;
+
+enumerated(msb0, 8 bits) Kind {
+    alpha = 0,
+    beta = 1,
+}
+
+structure(msb0) Header {
+    kind: Kind,
+    body_size: u16 [computed],
+}
+
+structure(msb0) AlphaBody(body_size: u16) {
+    tag: u8,
+    rest: DynamicArray<byte, body_size - 1>,
+}
+
+structure(msb0) BetaBody(body_size: u16) {
+    code: u16,
+    rest: DynamicArray<byte, body_size - 2>,
+}
+
+choice(msb0) Body(kind: Kind, body_size: u16) on kind {
+    Kind::alpha => AlphaBody(body_size),
+    Kind::beta => BetaBody(body_size),
+}
+
+structure(msb0) Message {
+    header: Header,
+    body: Body(header.kind, header.body_size),
+}
